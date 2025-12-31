@@ -3,7 +3,7 @@ import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/exampl
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm'
 
 /* =====================
-   BASIC
+   BASIC SETUP
 ===================== */
 document.body.style.margin = '0'
 document.body.style.overflow = 'hidden'
@@ -21,12 +21,17 @@ renderer.outputColorSpace = THREE.SRGBColorSpace
 document.body.appendChild(renderer.domElement)
 
 /* =====================
-   LIGHTS
+   LIGHTING (BRIGHT MODEL)
 ===================== */
 scene.add(new THREE.AmbientLight(0xffffff, 0.9))
+
 const sun = new THREE.DirectionalLight(0xffffff, 2.2)
 sun.position.set(300, 400, 200)
 scene.add(sun)
+
+const fill = new THREE.DirectionalLight(0xffffff, 0.8)
+fill.position.set(-200, 150, -200)
+scene.add(fill)
 
 /* =====================
    CONTROLS
@@ -42,7 +47,7 @@ controls.mouseButtons = {
 }
 
 /* =====================
-   LOADER
+   LOADERS
 ===================== */
 const loader = new GLTFLoader()
 
@@ -53,7 +58,7 @@ const clouds = []
 let orbitCenter = new THREE.Vector3()
 
 /* =====================
-   CITY + CLOUD SETUP (ROBUST)
+   CITY + CLOUD SETUP
 ===================== */
 loader.load('./city.glb', gltf => {
   const city = gltf.scene
@@ -62,53 +67,64 @@ loader.load('./city.glb', gltf => {
   const box = new THREE.Box3().setFromObject(city)
   box.getCenter(orbitCenter)
 
-  const worldMinY = box.max.y - 30   // üst katman
+  const minCloudY = box.max.y - 30
 
   city.traverse(obj => {
-    if (!obj.isObject3D) return
+    if (!obj.isMesh) return
 
+    // world Y ile tespit
     const wp = new THREE.Vector3()
     obj.getWorldPosition(wp)
+    if (wp.y < minCloudY) return
 
-    // YUKARIDA MI?
-    if (wp.y < worldMinY) return
+    // SADECE BULUT: düşük vertex sayısı
+    const geo = obj.geometry
+    if (!geo?.attributes?.position) return
+    if (geo.attributes.position.count > 2000) return
 
-// 🔒 SADECE BULUTLAR: düşük vertex sayısı
-const geo = obj.geometry
-if (!geo || !geo.attributes || !geo.attributes.position) return
-
-const vertexCount = geo.attributes.position.count
-if (vertexCount > 2000) return
-
-
-    // LOCAL REFERANSLA ORBIT DATA
-    const local = obj.position.clone()
-    const dx = local.x - orbitCenter.x
-    const dz = local.z - orbitCenter.z
+    // local orbit datası
+    const dx = obj.position.x - orbitCenter.x
+    const dz = obj.position.z - orbitCenter.z
 
     clouds.push({
       obj,
-      baseY: local.y,                 // 🔒 SABİT
+      baseY: obj.position.y,                // 🔒 yükseklik sabit
       radius: Math.sqrt(dx * dx + dz * dz),
       angle: Math.atan2(dz, dx),
-      speed: 0.25 + Math.random() * 0.15 // RAD / SANİYE (GÖRÜNÜR)
+      speed: 0.08 + Math.random() * 0.05    // RAD / SANİYE (yavaş)
     })
   })
 
-  console.log('☁️ Clouds orbiting:', clouds.length)
+  console.log('☁️ Clouds:', clouds.length)
 })
 
 /* =====================
-   CAR
+   CAR CONFIG (BURAYLA OYNA)
 ===================== */
-let car
-loader.load('./car.glb', gltf => {
-  car = gltf.scene
-  car.scale.setScalar(0.25)
-  car.position.set(55, 0.25, 55)
-  car.rotation.y = Math.PI * 1.5
-  scene.add(car)
-})
+const carConfig = {
+  scale: 0.25,                                // 🔍 boyut
+  startPosition: new THREE.Vector3(55, 0.25, 55), // 📍 başlangıç
+  rotationY: Math.PI * 1.5,                  // 🔄 yön
+  speed: 0.06,                               // 🚗 hız
+  lifeTime: 10                               // ⏱️ saniye
+}
+
+let car = null
+let carTimer = 0
+
+function spawnCar() {
+  loader.load('./car.glb', gltf => {
+    car = gltf.scene
+    car.scale.setScalar(carConfig.scale)
+    car.position.copy(carConfig.startPosition)
+    car.rotation.y = carConfig.rotationY
+    scene.add(car)
+    carTimer = 0
+  })
+}
+
+// ilk araba
+spawnCar()
 
 /* =====================
    CLOCK
@@ -122,16 +138,25 @@ function animate() {
   requestAnimationFrame(animate)
   const dt = clock.getDelta()
 
-  // ☁️ DAİRESEL HAREKET — Y SABİT
+  // ☁️ CLOUD ORBIT — DAİRESEL, Y SABİT
   clouds.forEach(c => {
     c.angle += c.speed * dt
-
     c.obj.position.x = orbitCenter.x + Math.cos(c.angle) * c.radius
     c.obj.position.z = orbitCenter.z + Math.sin(c.angle) * c.radius
     c.obj.position.y = c.baseY
   })
 
-  if (car) car.translateZ(0.04)
+  // 🚗 CAR LOOP
+  if (car) {
+    car.translateZ(carConfig.speed)
+    carTimer += dt
+
+    if (carTimer > carConfig.lifeTime) {
+      scene.remove(car)
+      car = null
+      spawnCar()
+    }
+  }
 
   controls.update()
   renderer.render(scene, camera)
