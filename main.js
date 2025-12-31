@@ -28,12 +28,18 @@ sun.position.set(300, 400, 200)
 scene.add(sun)
 
 /* =====================
-   CONTROLS
+   CONTROLS (PAN FIX)
 ===================== */
 const controls = new OrbitControls(camera, renderer.domElement)
 controls.enableDamping = true
 controls.dampingFactor = 0.08
 controls.target.set(0, 40, 0)
+
+controls.mouseButtons = {
+  LEFT: THREE.MOUSE.ROTATE,
+  MIDDLE: THREE.MOUSE.PAN,
+  RIGHT: THREE.MOUSE.DOLLY
+}
 
 /* =====================
    LOADERS
@@ -41,44 +47,40 @@ controls.target.set(0, 40, 0)
 const loader = new GLTFLoader()
 
 /* =====================
-   CLOUD GROUP (GLOBAL)
+   CLOUDS (SAFE & CORRECT)
 ===================== */
-const cloudGroup = new THREE.Group()
-scene.add(cloudGroup)
+const clouds = []
 
-/* =====================
-   CITY LOAD + SPLIT
-===================== */
 loader.load('./city.glb', gltf => {
   const city = gltf.scene
   scene.add(city)
 
-  // CITY BOUNDING BOX
   const box = new THREE.Box3().setFromObject(city)
   const size = new THREE.Vector3()
   box.getSize(size)
 
-  const topThreshold = box.min.y + size.y * 0.7 // üst %30
+  // ÜST %40 → bulutları tam kapsar
+  const thresholdY = box.min.y + size.y * 0.6
 
   city.traverse(obj => {
     if (!obj.isObject3D) return
 
-    const worldPos = new THREE.Vector3()
-    obj.getWorldPosition(worldPos)
+    const wp = new THREE.Vector3()
+    obj.getWorldPosition(wp)
 
-    if (worldPos.y > topThreshold) {
-      cloudGroup.add(obj)
+    if (wp.y > thresholdY) {
+      clouds.push(obj)
     }
   })
 
-  console.log('☁️ Cloud objects:', cloudGroup.children.length)
+  console.log('☁️ Clouds detected:', clouds.length)
 })
 
 /* =====================
    CAR CONFIG
 ===================== */
 const carConfig = {
-  position: new THREE.Vector3(70, 0.3, 70),
+  position: new THREE.Vector3(60, 0.25, 60),
   scale: 0.25,
   speed: 0.04,
   rotationY: Math.PI * 1.5
@@ -107,8 +109,10 @@ function animate() {
 
   const dt = clock.getDelta()
 
-  // ☁️ CLOUD ROTATION (GROUP LEVEL)
-  cloudGroup.rotation.y += 0.05 * dt
+  // ☁️ CLOUD ROTATION (NO POSITION BREAK)
+  clouds.forEach(c => {
+    c.rotation.y += 0.15 * dt
+  })
 
   // 🚗 CAR MOVE
   if (car) {
