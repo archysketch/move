@@ -73,10 +73,13 @@ loader.load('./city.glb', gltf => {
     // YUKARIDA MI?
     if (wp.y < worldMinY) return
 
-    // ÇOK BÜYÜK OBJEYİ ELE
-    const size = new THREE.Vector3()
-    new THREE.Box3().setFromObject(obj).getSize(size)
-    if (size.length() > 50) return
+// 🔒 SADECE BULUTLAR: düşük vertex sayısı
+const geo = obj.geometry
+if (!geo || !geo.attributes || !geo.attributes.position) return
+
+const vertexCount = geo.attributes.position.count
+if (vertexCount > 2000) return
+
 
     // LOCAL REFERANSLA ORBIT DATA
     const local = obj.position.clone()
