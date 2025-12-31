@@ -3,52 +3,21 @@ import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/exampl
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm'
 
 /* =====================
-   ENV DETECT
+   ENV
 ===================== */
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 
 /* =====================
-   GLOBAL CSS (PINS)
+   BASIC CSS
 ===================== */
 document.body.style.margin = '0'
 document.body.style.overflow = 'hidden'
 
 const style = document.createElement('style')
 style.innerHTML = `
-.pin-layer {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 10;
-  display: none;
-}
-.pin {
-  position: absolute;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #fff;
-  color: #111;
-  font-size: 11px;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform: translate(-50%, -50%);
-  pointer-events: auto;
-  cursor: pointer;
-}
-.tooltip {
-  position: absolute;
-  background: #fff;
-  color: #111;
-  padding: 4px 8px;
-  font-size: 11px;
-  border-radius: 2px;
-  white-space: nowrap;
-  transform: translate(16px, -50%);
-  display: none;
-}
+.pin-layer{position:fixed;inset:0;pointer-events:none;z-index:10;display:none}
+.pin{position:absolute;width:24px;height:24px;border-radius:50%;background:#fff;color:#111;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer}
+.tooltip{position:absolute;background:#fff;color:#111;padding:4px 8px;font-size:11px;border-radius:2px;white-space:nowrap;transform:translate(16px,-50%);display:none}
 `
 document.head.appendChild(style)
 
@@ -67,24 +36,21 @@ let activePin = null
 let isCameraAnimating = false
 
 /* =====================
-   THREE SETUP
+   THREE
 ===================== */
 const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x151515)
 
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 5000)
 
-const renderer = new THREE.WebGLRenderer({
-  antialias: !isMobile,
-  powerPreference: 'high-performance'
-})
+const renderer = new THREE.WebGLRenderer({ antialias: !isMobile })
 renderer.setSize(innerWidth, innerHeight)
 renderer.setPixelRatio(isMobile ? 1 : Math.min(devicePixelRatio, 2))
 renderer.outputColorSpace = THREE.SRGBColorSpace
 document.body.appendChild(renderer.domElement)
 
 /* =====================
-   LIGHTING (LIGHT)
+   LIGHT
 ===================== */
 scene.add(new THREE.AmbientLight(0xffffff, 0.9))
 const sun = new THREE.DirectionalLight(0xffffff, 1.8)
@@ -92,7 +58,7 @@ sun.position.set(300, 400, 200)
 scene.add(sun)
 
 /* =====================
-   CONTROLS (PAN FIX)
+   CONTROLS
 ===================== */
 const controls = new OrbitControls(camera, renderer.domElement)
 controls.enableDamping = true
@@ -106,19 +72,12 @@ controls.mouseButtons = {
 controls.enabled = false
 
 /* =====================
-   LOADERS
+   LOAD
 ===================== */
 const loader = new GLTFLoader()
-
-/* =====================
-   CLOUD DATA
-===================== */
 const clouds = []
-let orbitCenter = new THREE.Vector3()
+const orbitCenter = new THREE.Vector3()
 
-/* =====================
-   CITY + CLOUD SETUP
-===================== */
 loader.load('./city.glb', gltf => {
   const city = gltf.scene
   scene.add(city)
@@ -130,14 +89,11 @@ loader.load('./city.glb', gltf => {
 
   city.traverse(obj => {
     if (!obj.isMesh) return
-
     const wp = new THREE.Vector3()
     obj.getWorldPosition(wp)
     if (wp.y < minCloudY) return
-
-    const geo = obj.geometry
-    if (!geo?.attributes?.position) return
-    if (geo.attributes.position.count > 2000) return
+    if (!obj.geometry?.attributes?.position) return
+    if (obj.geometry.attributes.position.count > 2000) return
 
     const dx = obj.position.x - orbitCenter.x
     const dz = obj.position.z - orbitCenter.z
@@ -147,18 +103,18 @@ loader.load('./city.glb', gltf => {
       baseY: obj.position.y,
       radius: Math.sqrt(dx * dx + dz * dz),
       angle: Math.atan2(dz, dx),
-      speed: isMobile ? 0.06 : 0.08   // ☁️ biraz daha hızlı
+      speed: isMobile ? 0.06 : 0.08
     })
   })
 })
 
 /* =====================
-   PINS + CAMERA TARGETS
+   PINS
 ===================== */
 const pins = [
-  { id: 1, pos: new THREE.Vector3(10, 15, 0), text: 'Merkez Bina', cam: { r: 90, a: Math.PI * 1.2, y: 55 } },
-  { id: 2, pos: new THREE.Vector3(-20, 12, 15), text: 'Sosyal Alan', cam: { r: 90, a: Math.PI * 0.6, y: 55 } },
-  { id: 3, pos: new THREE.Vector3(15, 10, -20), text: 'Yeşil Bölge', cam: { r: 90, a: Math.PI * 1.8, y: 55 } }
+  { id: 1, pos: new THREE.Vector3(10, 15, 0), text: 'Merkez Bina', cam: { r: 180, a: Math.PI * 1.2, y: 160 } },
+  { id: 2, pos: new THREE.Vector3(-20, 12, 15), text: 'Sosyal Alan', cam: { r: 180, a: Math.PI * 0.6, y: 160 } },
+  { id: 3, pos: new THREE.Vector3(15, 10, -20), text: 'Yeşil Bölge', cam: { r: 180, a: Math.PI * 1.8, y: 160 } }
 ]
 
 pins.forEach(p => {
@@ -170,29 +126,16 @@ pins.forEach(p => {
   el.onclick = () => focusPin(p)
 })
 
-/* =====================
-   PIN PROJECTION (STABLE)
-===================== */
 function updatePins() {
   pins.forEach(p => {
     const v = p.pos.clone().project(camera)
     p.el.style.left = `${(v.x * 0.5 + 0.5) * innerWidth}px`
     p.el.style.top = `${(-v.y * 0.5 + 0.5) * innerHeight}px`
   })
-
-  if (activePin) {
-    const v = activePin.pos.clone().project(camera)
-    tooltip.style.left = `${(v.x * 0.5 + 0.5) * innerWidth}px`
-    tooltip.style.top = `${(-v.y * 0.5 + 0.5) * innerHeight}px`
-  }
 }
 
-controls.addEventListener('change', () => {
-  if (!isCameraAnimating) updatePins()
-})
-
 /* =====================
-   CAMERA FOCUS
+   CAMERA FOCUS (FIXED)
 ===================== */
 let focusT = 1
 let camFrom = {}
@@ -205,22 +148,16 @@ function focusPin(p) {
   tooltip.style.display = 'block'
 
   camFrom = {
-    r: camera.position.distanceTo(controls.target),
-    a: Math.atan2(camera.position.z - controls.target.z, camera.position.x - controls.target.x),
-    y: camera.position.y,
-    target: controls.target.clone()
+    r: camera.position.distanceTo(orbitCenter),
+    a: Math.atan2(camera.position.z - orbitCenter.z, camera.position.x - orbitCenter.x),
+    y: camera.position.y
   }
 
-  camTo = {
-    r: p.cam.r,
-    a: p.cam.a,
-    y: p.cam.y,
-    target: p.pos.clone()
-  }
+  camTo = p.cam
 
   let delta = camTo.a - camFrom.a
   delta = Math.atan2(Math.sin(delta), Math.cos(delta))
-  camTo.a = camFrom.a + delta
+  camTo = { ...camTo, a: camFrom.a + delta }
 
   focusT = 0
 }
@@ -231,15 +168,11 @@ function focusPin(p) {
 const clock = new THREE.Clock()
 let introT = 0
 const introDuration = isMobile ? 2.5 : 4
-
-const introFrom = isMobile
-  ? { r: 360, a: Math.PI * 1.1, y: 180 }
-  : { r: 650, a: Math.PI * 0.25, y: 320 }
-
+const introFrom = isMobile ? { r: 360, a: Math.PI * 1.1, y: 180 } : { r: 650, a: Math.PI * 0.25, y: 320 }
 const introTo = { r: 180, a: Math.PI * 1.25, y: 160 }
 
 /* =====================
-   ANIMATE
+   LOOP
 ===================== */
 function animate() {
   requestAnimationFrame(animate)
@@ -247,16 +180,13 @@ function animate() {
 
   // INTRO
   if (introT < 1) {
-    isCameraAnimating = true
     introT += dt / introDuration
     const t = THREE.MathUtils.smoothstep(introT, 0, 1)
 
     camera.position.set(
-      orbitCenter.x + Math.cos(THREE.MathUtils.lerp(introFrom.a, introTo.a, t)) *
-        THREE.MathUtils.lerp(introFrom.r, introTo.r, t),
+      orbitCenter.x + Math.cos(THREE.MathUtils.lerp(introFrom.a, introTo.a, t)) * THREE.MathUtils.lerp(introFrom.r, introTo.r, t),
       THREE.MathUtils.lerp(introFrom.y, introTo.y, t),
-      orbitCenter.z + Math.sin(THREE.MathUtils.lerp(introFrom.a, introTo.a, t)) *
-        THREE.MathUtils.lerp(introFrom.r, introTo.r, t)
+      orbitCenter.z + Math.sin(THREE.MathUtils.lerp(introFrom.a, introTo.a, t)) * THREE.MathUtils.lerp(introFrom.r, introTo.r, t)
     )
 
     camera.lookAt(orbitCenter)
@@ -266,42 +196,36 @@ function animate() {
 
   if (!controls.enabled) {
     controls.target.copy(orbitCenter)
-    controls.update()
     controls.enabled = true
     pinLayer.style.display = 'block'
-    isCameraAnimating = false
     updatePins()
   }
 
-  // ☁️ CLOUDS
+  // CLOUDS
   clouds.forEach(c => {
     c.angle += c.speed * dt
-    c.obj.position.x = orbitCenter.x + Math.cos(c.angle) * c.radius
-    c.obj.position.z = orbitCenter.z + Math.sin(c.angle) * c.radius
-    c.obj.position.y = c.baseY
+    c.obj.position.set(
+      orbitCenter.x + Math.cos(c.angle) * c.radius,
+      c.baseY,
+      orbitCenter.z + Math.sin(c.angle) * c.radius
+    )
   })
 
-  // 🎥 PIN FOCUS MOVE
+  // PIN FOCUS MOVE (FIXED)
   if (focusT < 1) {
-    isCameraAnimating = true
     focusT += dt * 1.2
     const t = THREE.MathUtils.smoothstep(focusT, 0, 1)
 
-    controls.target.lerpVectors(camFrom.target, camTo.target, t)
-
     camera.position.set(
-      controls.target.x + Math.cos(THREE.MathUtils.lerp(camFrom.a, camTo.a, t)) *
-        THREE.MathUtils.lerp(camFrom.r, camTo.r, t),
+      orbitCenter.x + Math.cos(THREE.MathUtils.lerp(camFrom.a, camTo.a, t)) * THREE.MathUtils.lerp(camFrom.r, camTo.r, t),
       THREE.MathUtils.lerp(camFrom.y, camTo.y, t),
-      controls.target.z + Math.sin(THREE.MathUtils.lerp(camFrom.a, camTo.a, t)) *
-        THREE.MathUtils.lerp(camFrom.r, camTo.r, t)
+      orbitCenter.z + Math.sin(THREE.MathUtils.lerp(camFrom.a, camTo.a, t)) * THREE.MathUtils.lerp(camFrom.r, camTo.r, t)
     )
-  } else if (isCameraAnimating) {
-    isCameraAnimating = false
-    updatePins()
+
+    camera.lookAt(THREE.MathUtils.lerpVectors(new THREE.Vector3(), p?.pos ?? orbitCenter, t))
   }
 
-  if (!isCameraAnimating) controls.update()
+  controls.update()
   renderer.render(scene, camera)
 }
 
