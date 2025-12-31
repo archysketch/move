@@ -59,9 +59,10 @@ tooltip.className = 'tooltip'
 pinLayer.appendChild(tooltip)
 
 let activePin = null
+let isCameraAnimating = false
 
 /* =====================
-   THREE BASIC
+   THREE SETUP
 ===================== */
 const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x151515)
@@ -144,52 +145,31 @@ loader.load('./city.glb', gltf => {
 })
 
 /* =====================
-   PINS (CAMERA TARGETS)
+   PINS + CAMERA TARGETS
 ===================== */
 const pins = [
-  {
-    id: 1,
-    pos: new THREE.Vector3(10, 15, 0),
-    text: 'Merkez Bina',
-    cam: { r: 90, a: Math.PI * 1.2, y: 55 }
-  },
-  {
-    id: 2,
-    pos: new THREE.Vector3(-20, 12, 15),
-    text: 'Sosyal Alan',
-    cam: { r: 90, a: Math.PI * 0.6, y: 55 }
-  },
-  {
-    id: 3,
-    pos: new THREE.Vector3(15, 10, -20),
-    text: 'Yeşil Bölge',
-    cam: { r: 90, a: Math.PI * 1.8, y: 55 }
-  }
+  { id: 1, pos: new THREE.Vector3(10, 15, 0), text: 'Merkez Bina', cam: { r: 90, a: Math.PI * 1.2, y: 55 } },
+  { id: 2, pos: new THREE.Vector3(-20, 12, 15), text: 'Sosyal Alan', cam: { r: 90, a: Math.PI * 0.6, y: 55 } },
+  { id: 3, pos: new THREE.Vector3(15, 10, -20), text: 'Yeşil Bölge', cam: { r: 90, a: Math.PI * 1.8, y: 55 } }
 ]
 
-/* =====================
-   PIN ELEMENTS
-===================== */
 pins.forEach(p => {
   const el = document.createElement('div')
   el.className = 'pin'
   el.innerText = p.id
   pinLayer.appendChild(el)
   p.el = el
-
   el.onclick = () => focusPin(p)
 })
 
 /* =====================
-   PIN PROJECTION (NO JITTER)
+   PIN PROJECTION (STABLE)
 ===================== */
 function updatePins() {
   pins.forEach(p => {
     const v = p.pos.clone().project(camera)
-    const x = (v.x * 0.5 + 0.5) * innerWidth
-    const y = (-v.y * 0.5 + 0.5) * innerHeight
-    p.el.style.left = `${x}px`
-    p.el.style.top = `${y}px`
+    p.el.style.left = `${(v.x * 0.5 + 0.5) * innerWidth}px`
+    p.el.style.top = `${(-v.y * 0.5 + 0.5) * innerHeight}px`
   })
 
   if (activePin) {
@@ -198,26 +178,27 @@ function updatePins() {
     tooltip.style.top = `${(-v.y * 0.5 + 0.5) * innerHeight}px`
   }
 }
-controls.addEventListener('change', updatePins)
+
+controls.addEventListener('change', () => {
+  if (!isCameraAnimating) updatePins()
+})
 
 /* =====================
-   CAMERA FOCUS (SHORTEST ARC)
+   CAMERA FOCUS (NO JITTER)
 ===================== */
 let focusT = 1
 let camFrom = {}
 let camTo = {}
 
 function focusPin(p) {
+  isCameraAnimating = true
   activePin = p
   tooltip.innerText = p.text
   tooltip.style.display = 'block'
 
   camFrom = {
     r: camera.position.distanceTo(controls.target),
-    a: Math.atan2(
-      camera.position.z - controls.target.z,
-      camera.position.x - controls.target.x
-    ),
+    a: Math.atan2(camera.position.z - controls.target.z, camera.position.x - controls.target.x),
     y: camera.position.y,
     target: controls.target.clone()
   }
@@ -229,7 +210,6 @@ function focusPin(p) {
     target: p.pos.clone()
   }
 
-  // 🔑 SHORTEST ARC
   let delta = camTo.a - camFrom.a
   delta = Math.atan2(Math.sin(delta), Math.cos(delta))
   camTo.a = camFrom.a + delta
@@ -256,17 +236,16 @@ function animate() {
 
   // INTRO
   if (introT < 1) {
+    isCameraAnimating = true
     introT += dt / introDuration
     const t = THREE.MathUtils.smoothstep(introT, 0, 1)
 
-    const r = THREE.MathUtils.lerp(introFrom.r, introTo.r, t)
-    const a = THREE.MathUtils.lerp(introFrom.a, introTo.a, t)
-    const y = THREE.MathUtils.lerp(introFrom.y, introTo.y, t)
-
     camera.position.set(
-      orbitCenter.x + Math.cos(a) * r,
-      y,
-      orbitCenter.z + Math.sin(a) * r
+      orbitCenter.x + Math.cos(THREE.MathUtils.lerp(introFrom.a, introTo.a, t)) *
+        THREE.MathUtils.lerp(introFrom.r, introTo.r, t),
+      THREE.MathUtils.lerp(introFrom.y, introTo.y, t),
+      orbitCenter.z + Math.sin(THREE.MathUtils.lerp(introFrom.a, introTo.a, t)) *
+        THREE.MathUtils.lerp(introFrom.r, introTo.r, t)
     )
 
     camera.lookAt(orbitCenter)
@@ -279,10 +258,11 @@ function animate() {
     controls.update()
     controls.enabled = true
     pinLayer.style.display = 'block'
+    isCameraAnimating = false
     updatePins()
   }
 
-  // ☁️ CLOUDS
+  // CLOUDS
   clouds.forEach(c => {
     c.angle += c.speed * dt
     c.obj.position.x = orbitCenter.x + Math.cos(c.angle) * c.radius
@@ -290,22 +270,24 @@ function animate() {
     c.obj.position.y = c.baseY
   })
 
-  // 🎥 PIN FOCUS MOVE
+  // PIN FOCUS MOVE
   if (focusT < 1) {
+    isCameraAnimating = true
     focusT += dt * 1.2
     const t = THREE.MathUtils.smoothstep(focusT, 0, 1)
-
-    const r = THREE.MathUtils.lerp(camFrom.r, camTo.r, t)
-    const a = THREE.MathUtils.lerp(camFrom.a, camTo.a, t)
-    const y = THREE.MathUtils.lerp(camFrom.y, camTo.y, t)
 
     controls.target.lerpVectors(camFrom.target, camTo.target, t)
 
     camera.position.set(
-      controls.target.x + Math.cos(a) * r,
-      y,
-      controls.target.z + Math.sin(a) * r
+      controls.target.x + Math.cos(THREE.MathUtils.lerp(camFrom.a, camTo.a, t)) *
+        THREE.MathUtils.lerp(camFrom.r, camTo.r, t),
+      THREE.MathUtils.lerp(camFrom.y, camTo.y, t),
+      controls.target.z + Math.sin(THREE.MathUtils.lerp(camFrom.a, camTo.a, t)) *
+        THREE.MathUtils.lerp(camFrom.r, camTo.r, t)
     )
+  } else if (isCameraAnimating) {
+    isCameraAnimating = false
+    updatePins()
   }
 
   controls.update()
