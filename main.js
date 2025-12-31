@@ -3,7 +3,12 @@ import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/exampl
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm'
 
 /* =====================
-   GLOBAL CSS (PINS)
+   ENV / PERF DETECT
+===================== */
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+
+/* =====================
+   GLOBAL CSS
 ===================== */
 document.body.style.margin = '0'
 document.body.style.overflow = 'hidden'
@@ -15,9 +20,9 @@ style.innerHTML = `
   inset: 0;
   pointer-events: none;
   z-index: 10;
+  will-change: transform;
 }
 .pin {
-  position: absolute;
   width: 24px;
   height: 24px;
   border-radius: 50%;
@@ -30,6 +35,7 @@ style.innerHTML = `
   justify-content: center;
   pointer-events: auto;
   cursor: pointer;
+  will-change: transform;
 }
 .tooltip {
   position: absolute;
@@ -40,6 +46,7 @@ style.innerHTML = `
   border-radius: 2px;
   white-space: nowrap;
   display: none;
+  will-change: transform;
 }
 `
 document.head.appendChild(style)
@@ -58,31 +65,30 @@ pinLayer.appendChild(tooltip)
 let activePin = null
 
 /* =====================
-   BASIC SETUP
+   THREE SETUP
 ===================== */
 const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x151515)
 
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 5000)
 
-const renderer = new THREE.WebGLRenderer({ antialias: true })
+const renderer = new THREE.WebGLRenderer({
+  antialias: !isMobile,
+  powerPreference: 'high-performance'
+})
 renderer.setSize(innerWidth, innerHeight)
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+renderer.setPixelRatio(Math.min(devicePixelRatio, isMobile ? 1.5 : 2))
 renderer.outputColorSpace = THREE.SRGBColorSpace
 document.body.appendChild(renderer.domElement)
 
 /* =====================
-   LIGHTING
+   LIGHTING (OPTIMIZED)
 ===================== */
 scene.add(new THREE.AmbientLight(0xffffff, 0.9))
 
-const sun = new THREE.DirectionalLight(0xffffff, 2.2)
+const sun = new THREE.DirectionalLight(0xffffff, 2)
 sun.position.set(300, 400, 200)
 scene.add(sun)
-
-const fill = new THREE.DirectionalLight(0xffffff, 0.8)
-fill.position.set(-200, 150, -200)
-scene.add(fill)
 
 /* =====================
    CONTROLS
@@ -92,11 +98,6 @@ controls.enableDamping = true
 controls.dampingFactor = 0.08
 controls.target.set(0, 40, 0)
 controls.enabled = false
-controls.mouseButtons = {
-  LEFT: THREE.MOUSE.ROTATE,
-  MIDDLE: THREE.MOUSE.PAN,
-  RIGHT: THREE.MOUSE.DOLLY
-}
 
 /* =====================
    LOADERS
@@ -109,9 +110,6 @@ const loader = new GLTFLoader()
 const clouds = []
 let orbitCenter = new THREE.Vector3()
 
-/* =====================
-   CITY + CLOUD SETUP
-===================== */
 loader.load('./city.glb', gltf => {
   const city = gltf.scene
   scene.add(city)
@@ -140,7 +138,7 @@ loader.load('./city.glb', gltf => {
       baseY: obj.position.y,
       radius: Math.sqrt(dx * dx + dz * dz),
       angle: Math.atan2(dz, dx),
-      speed: 0.06 + Math.random() * 0.04
+      speed: 0.05
     })
   })
 })
@@ -165,40 +163,9 @@ pins.forEach(p => {
     activePin = p
     tooltip.innerText = p.text
     tooltip.style.display = 'block'
-
-    clearTimeout(tooltip._t)
-    tooltip._t = setTimeout(() => {
-      tooltip.style.display = 'none'
-      activePin = null
-    }, 3000)
+    setTimeout(() => (tooltip.style.display = 'none'), 2500)
   }
 })
-
-/* =====================
-   CAR CONFIG
-===================== */
-const carConfig = {
-  scale: 0.25,
-  startPosition: new THREE.Vector3(55, 0.25, 55),
-  rotationY: Math.PI * 1.5,
-  speed: 0.06,
-  lifeTime: 10
-}
-
-let car = null
-let carTimer = 0
-
-function spawnCar() {
-  loader.load('./car.glb', gltf => {
-    car = gltf.scene
-    car.scale.setScalar(carConfig.scale)
-    car.position.copy(carConfig.startPosition)
-    car.rotation.y = carConfig.rotationY
-    scene.add(car)
-    carTimer = 0
-  })
-}
-spawnCar()
 
 /* =====================
    INTRO
@@ -209,6 +176,28 @@ const introDuration = 4
 
 const introFrom = { r: 650, a: Math.PI * 0.25, y: 320 }
 const introTo   = { r: 180, a: Math.PI * 1.25, y: 160 }
+
+/* =====================
+   PIN UPDATE THROTTLE
+===================== */
+let pinFrame = 0
+const PIN_UPDATE_RATE = isMobile ? 4 : 2 // her 2–4 frame
+
+function updatePins() {
+  pins.forEach(p => {
+    const v = p.pos.clone().project(camera)
+    const x = (v.x * 0.5 + 0.5) * innerWidth
+    const y = (-v.y * 0.5 + 0.5) * innerHeight
+    p.el.style.transform = `translate(${x | 0}px, ${y | 0}px) translate(-50%, -50%)`
+  })
+
+  if (activePin) {
+    const v = activePin.pos.clone().project(camera)
+    const x = (v.x * 0.5 + 0.5) * innerWidth
+    const y = (-v.y * 0.5 + 0.5) * innerHeight
+    tooltip.style.transform = `translate(${x | 0}px, ${y | 0}px) translate(16px, -50%)`
+  }
+}
 
 /* =====================
    ANIMATE
@@ -222,14 +211,12 @@ function animate() {
     introT += dt / introDuration
     const t = THREE.MathUtils.smoothstep(introT, 0, 1)
 
-    const r = THREE.MathUtils.lerp(introFrom.r, introTo.r, t)
-    const a = THREE.MathUtils.lerp(introFrom.a, introTo.a, t)
-    const y = THREE.MathUtils.lerp(introFrom.y, introTo.y, t)
-
     camera.position.set(
-      orbitCenter.x + Math.cos(a) * r,
-      y,
-      orbitCenter.z + Math.sin(a) * r
+      orbitCenter.x + Math.cos(THREE.MathUtils.lerp(introFrom.a, introTo.a, t)) *
+        THREE.MathUtils.lerp(introFrom.r, introTo.r, t),
+      THREE.MathUtils.lerp(introFrom.y, introTo.y, t),
+      orbitCenter.z + Math.sin(THREE.MathUtils.lerp(introFrom.a, introTo.a, t)) *
+        THREE.MathUtils.lerp(introFrom.r, introTo.r, t)
     )
 
     camera.lookAt(orbitCenter)
@@ -237,7 +224,6 @@ function animate() {
     return
   } else if (!controls.enabled) {
     controls.target.copy(orbitCenter)
-    controls.update()
     controls.enabled = true
   }
 
@@ -249,31 +235,9 @@ function animate() {
     c.obj.position.y = c.baseY
   })
 
-  // CAR LOOP
-  if (car) {
-    car.translateZ(carConfig.speed)
-    carTimer += dt
-    if (carTimer > carConfig.lifeTime) {
-      scene.remove(car)
-      car = null
-      spawnCar()
-    }
-  }
-
-  // PIN PROJECTION (JITTER FIX)
-  pins.forEach(p => {
-    const v = p.pos.clone().project(camera)
-    const x = Math.round((v.x * 0.5 + 0.5) * innerWidth)
-    const y = Math.round((-v.y * 0.5 + 0.5) * innerHeight)
-    p.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`
-  })
-
-  if (activePin) {
-    const v = activePin.pos.clone().project(camera)
-    const x = Math.round((v.x * 0.5 + 0.5) * innerWidth)
-    const y = Math.round((-v.y * 0.5 + 0.5) * innerHeight)
-    tooltip.style.transform = `translate(${x}px, ${y}px) translate(16px, -50%)`
-  }
+  // PIN UPDATE (THROTTLED)
+  pinFrame++
+  if (pinFrame % PIN_UPDATE_RATE === 0) updatePins()
 
   controls.update()
   renderer.render(scene, camera)
