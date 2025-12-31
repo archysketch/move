@@ -14,35 +14,24 @@ scene.background = new THREE.Color(0x151515)
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 5000)
 camera.position.set(180, 160, 180)
 
-const renderer = new THREE.WebGLRenderer({
-  antialias: true,
-  physicallyCorrectLights: true
-})
+const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setSize(innerWidth, innerHeight)
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
 renderer.outputColorSpace = THREE.SRGBColorSpace
 document.body.appendChild(renderer.domElement)
 
 /* =====================
-   LIGHTING (BRIGHT MODEL)
+   LIGHTING (BRIGHT)
 ===================== */
-// Genel dolgu
 scene.add(new THREE.AmbientLight(0xffffff, 0.9))
 
-// Ana güneş
-const sun = new THREE.DirectionalLight(0xffffff, 2.2)
+const sun = new THREE.DirectionalLight(0xffffff, 2.4)
 sun.position.set(300, 400, 200)
 scene.add(sun)
 
-// Karşı dolgu (kontrastı öldürmesin)
-const fill = new THREE.DirectionalLight(0xffffff, 0.8)
+const fill = new THREE.DirectionalLight(0xffffff, 0.9)
 fill.position.set(-200, 150, -200)
 scene.add(fill)
-
-// Yukarıdan hafif ışık
-const topLight = new THREE.DirectionalLight(0xffffff, 0.6)
-topLight.position.set(0, 500, 0)
-scene.add(topLight)
 
 /* =====================
    CONTROLS
@@ -51,7 +40,6 @@ const controls = new OrbitControls(camera, renderer.domElement)
 controls.enableDamping = true
 controls.dampingFactor = 0.08
 controls.target.set(0, 40, 0)
-
 controls.mouseButtons = {
   LEFT: THREE.MOUSE.ROTATE,
   MIDDLE: THREE.MOUSE.PAN,
@@ -70,19 +58,17 @@ const clouds = []
 let cityCenter = new THREE.Vector3()
 
 /* =====================
-   CITY + CLOUD ORBIT
+   CITY + CLOUD PREP
 ===================== */
 loader.load('./city.glb', gltf => {
   const city = gltf.scene
   scene.add(city)
 
-  // Bounding box
   const box = new THREE.Box3().setFromObject(city)
   const size = new THREE.Vector3()
   box.getSize(size)
   box.getCenter(cityCenter)
 
-  // Üst %40 = bulut katmanı
   const thresholdY = box.min.y + size.y * 0.6
 
   city.traverse(obj => {
@@ -92,17 +78,15 @@ loader.load('./city.glb', gltf => {
     obj.getWorldPosition(wp)
 
     if (wp.y > thresholdY) {
-      const radius = new THREE.Vector2(
-        wp.x - cityCenter.x,
-        wp.z - cityCenter.z
-      ).length()
+      const dx = wp.x - cityCenter.x
+      const dz = wp.z - cityCenter.z
 
       clouds.push({
         obj,
-        radius,
-        angle: Math.atan2(wp.z - cityCenter.z, wp.x - cityCenter.x),
-        height: wp.y,
-        speed: 0.02 + Math.random() * 0.02
+        radius: Math.sqrt(dx * dx + dz * dz),
+        angle: Math.atan2(dz, dx),
+        height: wp.y,                 // 🔒 SABİT Y
+        speed: 0.015 + Math.random() * 0.015
       })
     }
   })
@@ -142,21 +126,19 @@ function animate() {
   requestAnimationFrame(animate)
   const dt = clock.getDelta()
 
-  // ☁️ CLOUD ORBIT (CITY CENTER)
+  // ☁️ CLOUD ORBIT — XZ ONLY, Y FIXED
   clouds.forEach(c => {
     c.angle += c.speed * dt
 
     c.obj.position.set(
       cityCenter.x + Math.cos(c.angle) * c.radius,
-      c.height,
+      c.height, // 🔒 yükseklik değişmez
       cityCenter.z + Math.sin(c.angle) * c.radius
     )
   })
 
   // 🚗 CAR MOVE
-  if (car) {
-    car.translateZ(carConfig.speed)
-  }
+  if (car) car.translateZ(carConfig.speed)
 
   controls.update()
   renderer.render(scene, camera)
