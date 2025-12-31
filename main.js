@@ -101,7 +101,7 @@ loader.load('./clouds_cartoon.glb', gltf => {
   cloud = gltf.scene
 
   // 🔥 BOYUT
-  cloud.scale.setScalar(3.2)
+  cloud.scale.setScalar(0.8)
 
   scene.add(cloud)
 })
@@ -219,9 +219,9 @@ function animate() {
   if (cloud) {
     cloudAngle += 0.0009          // şehir etrafında yavaş
     cloud.position.set(
-      Math.cos(cloudAngle) * cityRadius * 0.8,
-      cityRadius * 0.65,
-      Math.sin(cloudAngle) * cityRadius * 0.8
+      Math.cos(cloudAngle) * cityRadius * 0.1,
+      cityRadius * 0.55,
+      Math.sin(cloudAngle) * cityRadius * 0.1
     )
 
     // sadece Y ekseninde spin
