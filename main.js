@@ -102,8 +102,8 @@ loader.load('./city.glb', gltf => {
    CAR CONFIG (BURAYLA OYNA)
 ===================== */
 const carConfig = {
-  scale: 0.25,                                // 🔍 boyut
-  startPosition: new THREE.Vector3(55, 0.25, 55), // 📍 başlangıç
+  scale: 0.50,                                // 🔍 boyut
+  startPosition: new THREE.Vector3(40, 0.20, 55), // 📍 başlangıç
   rotationY: Math.PI * 1.5,                  // 🔄 yön
   speed: 0.06,                               // 🚗 hız
   lifeTime: 10                               // ⏱️ saniye
