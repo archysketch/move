@@ -10,39 +10,9 @@ document.body.style.overflow = 'hidden'
 
 const style = document.createElement('style')
 style.innerHTML = `
-.pin-layer {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 10;
-}
-.pin {
-  position: absolute;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #fff;
-  color: #111;
-  font-size: 11px;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform: translate(-50%, -50%);
-  pointer-events: auto;
-  cursor: pointer;
-}
-.tooltip {
-  position: absolute;
-  background: #fff;
-  color: #111;
-  padding: 4px 8px;
-  font-size: 11px;
-  border-radius: 2px;
-  white-space: nowrap;
-  transform: translate(16px, -50%);
-  display: none;
-}
+.pin-layer{position:fixed;inset:0;pointer-events:none;z-index:10}
+.pin{position:absolute;width:24px;height:24px;border-radius:50%;background:#fff;color:#111;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer}
+.tooltip{position:absolute;background:#fff;color:#111;padding:4px 8px;font-size:11px;border-radius:2px;white-space:nowrap;transform:translate(16px,-50%);display:none}
 `
 document.head.appendChild(style)
 
@@ -90,6 +60,8 @@ scene.add(dir)
 const controls = new OrbitControls(camera, renderer.domElement)
 controls.enabled = false
 controls.target.set(0, 0, 0)
+controls.enableDamping = true
+controls.dampingFactor = 0.08
 
 controls.mouseButtons = {
   LEFT: THREE.MOUSE.ROTATE,
@@ -97,40 +69,21 @@ controls.mouseButtons = {
   RIGHT: THREE.MOUSE.DOLLY
 }
 
-controls.enableDamping = true
-controls.dampingFactor = 0.08
-controls.enableZoom = true
-controls.zoomSpeed = 0.6
-controls.enablePan = true
-controls.panSpeed = 0.6
-controls.minDistance = 40
-controls.maxDistance = 800
-
 /* =====================
-   MODEL + CLOUD SETUP
+   LOAD MODEL
 ===================== */
-const clouds = []
+let cloudGroup = new THREE.Group()
+scene.add(cloudGroup)
 
 new GLTFLoader().load('./city.glb', gltf => {
   const city = gltf.scene
   scene.add(city)
 
-  // ☁️ BULUTLARI AYIR
+  // ☁️ BULUTLARI GROUP'A TAŞI
   city.traverse(obj => {
     if (!obj.isMesh) return
-    if (!obj.geometry?.attributes?.position) return
-
-    // basit ve güvenli filtre
-    if (obj.position.y > 30 && obj.geometry.attributes.position.count < 2000) {
-      const r = Math.sqrt(obj.position.x ** 2 + obj.position.z ** 2)
-
-      clouds.push({
-        obj,
-        r,
-        a: Math.atan2(obj.position.z, obj.position.x),
-        y: obj.position.y,
-        speed: 0.002 + Math.random() * 0.002
-      })
+    if (obj.position.y > 30) {
+      cloudGroup.add(obj)
     }
   })
 })
@@ -144,125 +97,99 @@ const introStart = { r: 520, a: Math.PI * 0.75, h: 260 }
 const introEnd   = { r: 60,  a: Math.PI * 1.15, h: 40 }
 
 /* =====================
-   PINS
+   PINS (REFERANS)
 ===================== */
 const pins = [
-  { id: 1, pos: new THREE.Vector3(10, 15, 0),  text: 'Merkez Bina', cam:{ r:80, a:Math.PI*1.25, h:55 }},
-  { id: 2, pos: new THREE.Vector3(-20, 10, 15), text: 'Sosyal Alan', cam:{ r:80, a:Math.PI*1.25, h:55 }},
-  { id: 3, pos: new THREE.Vector3(15, 8, -20),  text: 'Yeşil Bölge', cam:{ r:80, a:Math.PI*0.25, h:55 }}
+  { id: 1, pos: new THREE.Vector3(10, 15, 0), text:'Merkez Bina', cam:{ r:80,a:Math.PI*1.25,h:55 }},
+  { id: 2, pos: new THREE.Vector3(-20,10,15), text:'Sosyal Alan', cam:{ r:80,a:Math.PI*1.25,h:55 }},
+  { id: 3, pos: new THREE.Vector3(15,8,-20), text:'Yeşil Bölge', cam:{ r:80,a:Math.PI*0.25,h:55 }}
 ]
 
-let activePin = null
-let focusT = 1
-let camFrom = { r:0, a:0, h:0, target:new THREE.Vector3() }
-let camTo   = { r:0, a:0, h:0, target:new THREE.Vector3() }
+let activePin=null, focusT=1
+let camFrom={r:0,a:0,h:0,target:new THREE.Vector3()}
+let camTo={r:0,a:0,h:0,target:new THREE.Vector3()}
 
-/* =====================
-   PIN ELEMENTS
-===================== */
-pins.forEach(p => {
-  const el = document.createElement('div')
-  el.className = 'pin'
-  el.innerText = p.id
+pins.forEach(p=>{
+  const el=document.createElement('div')
+  el.className='pin'
+  el.innerText=p.id
   pinLayer.appendChild(el)
-  p.el = el
+  p.el=el
 
-  el.onclick = () => {
-    activePin = p
-    tooltip.innerText = p.text
-    tooltip.style.display = 'block'
+  el.onclick=()=>{
+    activePin=p
+    tooltip.innerText=p.text
+    tooltip.style.display='block'
 
-    camFrom.r = camera.position.distanceTo(controls.target)
-    camFrom.a = Math.atan2(
-      camera.position.z - controls.target.z,
-      camera.position.x - controls.target.x
-    )
-    camFrom.h = camera.position.y
+    camFrom.r=camera.position.distanceTo(controls.target)
+    camFrom.a=Math.atan2(camera.position.z, camera.position.x)
+    camFrom.h=camera.position.y
     camFrom.target.copy(controls.target)
 
-    camTo.r = p.cam.r
-    camTo.a = p.cam.a
-    camTo.h = p.cam.h
+    camTo.r=p.cam.r
+    camTo.a=p.cam.a
+    camTo.h=p.cam.h
     camTo.target.copy(p.pos)
 
-    let delta = camTo.a - camFrom.a
-    delta = Math.atan2(Math.sin(delta), Math.cos(delta))
-    camTo.a = camFrom.a + delta
-
-    focusT = 0
-
-    clearTimeout(tooltip._t)
-    tooltip._t = setTimeout(() => {
-      tooltip.style.display = 'none'
-      activePin = null
-    }, 4000)
+    let d=camTo.a-camFrom.a
+    d=Math.atan2(Math.sin(d),Math.cos(d))
+    camTo.a=camFrom.a+d
+    focusT=0
   }
 })
 
 /* =====================
    LOOP
 ===================== */
-function animate() {
+function animate(){
   requestAnimationFrame(animate)
 
   // INTRO
-  if (introFrame < introDuration) {
-    const t = THREE.MathUtils.smoothstep(introFrame / introDuration, 0, 1)
-    const r = THREE.MathUtils.lerp(introStart.r, introEnd.r, t)
-    const a = THREE.MathUtils.lerp(introStart.a, introEnd.a, t)
-    const h = THREE.MathUtils.lerp(introStart.h, introEnd.h, t)
-
-    camera.position.set(Math.cos(a) * r, h, Math.sin(a) * r)
-    camera.lookAt(0, 0, 0)
+  if(introFrame<introDuration){
+    const t=THREE.MathUtils.smoothstep(introFrame/introDuration,0,1)
+    const r=THREE.MathUtils.lerp(introStart.r,introEnd.r,t)
+    const a=THREE.MathUtils.lerp(introStart.a,introEnd.a,t)
+    const h=THREE.MathUtils.lerp(introStart.h,introEnd.h,t)
+    camera.position.set(Math.cos(a)*r,h,Math.sin(a)*r)
+    camera.lookAt(0,0,0)
     introFrame++
-  } else {
-    controls.enabled = true
+  }else{
+    controls.enabled=true
   }
 
   // PIN FOCUS
-  if (focusT < 1) {
-    focusT += 0.015
-    const t = THREE.MathUtils.smoothstep(focusT, 0, 1)
-
-    const r = THREE.MathUtils.lerp(camFrom.r, camTo.r, t)
-    const a = THREE.MathUtils.lerp(camFrom.a, camTo.a, t)
-    const h = THREE.MathUtils.lerp(camFrom.h, camTo.h, t)
-
-    controls.target.lerpVectors(camFrom.target, camTo.target, t)
-
+  if(focusT<1){
+    focusT+=0.015
+    const t=THREE.MathUtils.smoothstep(focusT,0,1)
+    const r=THREE.MathUtils.lerp(camFrom.r,camTo.r,t)
+    const a=THREE.MathUtils.lerp(camFrom.a,camTo.a,t)
+    const h=THREE.MathUtils.lerp(camFrom.h,camTo.h,t)
+    controls.target.lerpVectors(camFrom.target,camTo.target,t)
     camera.position.set(
-      controls.target.x + Math.cos(a) * r,
+      controls.target.x+Math.cos(a)*r,
       h,
-      controls.target.z + Math.sin(a) * r
+      controls.target.z+Math.sin(a)*r
     )
   }
 
-  // ☁️ BULUT HAREKETİ (Y SABİT)
-  clouds.forEach(c => {
-    c.a += c.speed
-    c.obj.position.x = Math.cos(c.a) * c.r
-    c.obj.position.z = Math.sin(c.a) * c.r
-    c.obj.position.y = c.y
-  })
+  // ☁️ BULUT DÖNÜŞÜ (KESİN ÇALIŞIR)
+  cloudGroup.rotation.y += 0.0025
 
   controls.update()
 
-  // PIN PROJECTION (REFERANS)
-  pins.forEach(p => {
-    const v = p.pos.clone().project(camera)
-    const x = (v.x * 0.5 + 0.5) * innerWidth
-    const y = (-v.y * 0.5 + 0.5) * innerHeight
-
-    p.el.style.left = `${x}px`
-    p.el.style.top = `${y}px`
-
-    if (activePin === p) {
-      tooltip.style.left = `${x}px`
-      tooltip.style.top = `${y}px`
+  // PIN PROJECTION
+  pins.forEach(p=>{
+    const v=p.pos.clone().project(camera)
+    const x=(v.x*0.5+0.5)*innerWidth
+    const y=(-v.y*0.5+0.5)*innerHeight
+    p.el.style.left=`${x}px`
+    p.el.style.top=`${y}px`
+    if(activePin===p){
+      tooltip.style.left=`${x}px`
+      tooltip.style.top=`${y}px`
     }
   })
 
-  renderer.render(scene, camera)
+  renderer.render(scene,camera)
 }
-
 animate()
