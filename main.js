@@ -28,7 +28,6 @@ style.innerHTML = `
   display: flex;
   align-items: center;
   justify-content: center;
-  transform: translate(-50%, -50%);
   pointer-events: auto;
   cursor: pointer;
 }
@@ -40,7 +39,6 @@ style.innerHTML = `
   font-size: 11px;
   border-radius: 2px;
   white-space: nowrap;
-  transform: translate(16px, -50%);
   display: none;
 }
 `
@@ -56,6 +54,8 @@ document.body.appendChild(pinLayer)
 const tooltip = document.createElement('div')
 tooltip.className = 'tooltip'
 pinLayer.appendChild(tooltip)
+
+let activePin = null
 
 /* =====================
    BASIC SETUP
@@ -79,6 +79,10 @@ scene.add(new THREE.AmbientLight(0xffffff, 0.9))
 const sun = new THREE.DirectionalLight(0xffffff, 2.2)
 sun.position.set(300, 400, 200)
 scene.add(sun)
+
+const fill = new THREE.DirectionalLight(0xffffff, 0.8)
+fill.position.set(-200, 150, -200)
+scene.add(fill)
 
 /* =====================
    CONTROLS
@@ -142,7 +146,7 @@ loader.load('./city.glb', gltf => {
 })
 
 /* =====================
-   PINS (BURAYLA OYNA)
+   PINS
 ===================== */
 const pins = [
   { id: 1, pos: new THREE.Vector3(10, 15, 0), text: 'Merkez Bina' },
@@ -158,9 +162,15 @@ pins.forEach(p => {
   p.el = el
 
   el.onclick = () => {
+    activePin = p
     tooltip.innerText = p.text
     tooltip.style.display = 'block'
-    setTimeout(() => (tooltip.style.display = 'none'), 3000)
+
+    clearTimeout(tooltip._t)
+    tooltip._t = setTimeout(() => {
+      tooltip.style.display = 'none'
+      activePin = null
+    }, 3000)
   }
 })
 
@@ -188,11 +198,10 @@ function spawnCar() {
     carTimer = 0
   })
 }
-
 spawnCar()
 
 /* =====================
-   INTRO ANIMATION
+   INTRO
 ===================== */
 const clock = new THREE.Clock()
 let introT = 0
@@ -226,7 +235,9 @@ function animate() {
     camera.lookAt(orbitCenter)
     renderer.render(scene, camera)
     return
-  } else {
+  } else if (!controls.enabled) {
+    controls.target.copy(orbitCenter)
+    controls.update()
     controls.enabled = true
   }
 
@@ -249,16 +260,20 @@ function animate() {
     }
   }
 
-  // PIN PROJECTION
+  // PIN PROJECTION (JITTER FIX)
   pins.forEach(p => {
     const v = p.pos.clone().project(camera)
-    const x = (v.x * 0.5 + 0.5) * innerWidth
-    const y = (-v.y * 0.5 + 0.5) * innerHeight
-    p.el.style.left = `${x}px`
-    p.el.style.top = `${y}px`
-    tooltip.style.left = `${x}px`
-    tooltip.style.top = `${y}px`
+    const x = Math.round((v.x * 0.5 + 0.5) * innerWidth)
+    const y = Math.round((-v.y * 0.5 + 0.5) * innerHeight)
+    p.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`
   })
+
+  if (activePin) {
+    const v = activePin.pos.clone().project(camera)
+    const x = Math.round((v.x * 0.5 + 0.5) * innerWidth)
+    const y = Math.round((-v.y * 0.5 + 0.5) * innerHeight)
+    tooltip.style.transform = `translate(${x}px, ${y}px) translate(16px, -50%)`
+  }
 
   controls.update()
   renderer.render(scene, camera)
