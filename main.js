@@ -54,7 +54,7 @@ rim.position.set(-200,150,-200)
 scene.add(rim)
 
 /* =====================
-   CONTROLS (REFERANS)
+   CONTROLS
 ===================== */
 const controls=new OrbitControls(camera,renderer.domElement)
 controls.enabled=false
@@ -73,31 +73,27 @@ controls.mouseButtons={
 const loader=new GLTFLoader()
 
 /* =====================
-   CLOUD SYSTEM
+   CITY
+===================== */
+let cityRadius=50
+
+loader.load('./cartooncity.glb',gltf=>{
+ const city=gltf.scene
+ scene.add(city)
+
+ const box=new THREE.Box3().setFromObject(city)
+ const size=new THREE.Vector3()
+ box.getSize(size)
+ cityRadius=Math.max(size.x,size.z)*0.5
+})
+
+/* =====================
+   CLOUD SYSTEM (DÜZELTİLDİ)
 ===================== */
 const clouds=[]
 const cloudGroup=new THREE.Group()
 scene.add(cloudGroup)
 
-let cityRadius=50   // fallback
-
-/* =====================
-   LOAD CITY
-===================== */
-loader.load('./cartooncity.glb',gltf=>{
- const city=gltf.scene
- scene.add(city)
-
- // 🔑 Şehrin gerçek boyutu
- const box=new THREE.Box3().setFromObject(city)
- const size=new THREE.Vector3()
- box.getSize(size)
- cityRadius=Math.max(size.x,size.z)*0.55
-})
-
-/* =====================
-   LOAD CLOUDS
-===================== */
 loader.load('./cloud.glb',gltf=>{
  const base=gltf.scene
  const COUNT=5
@@ -105,21 +101,26 @@ loader.load('./cloud.glb',gltf=>{
  for(let i=0;i<COUNT;i++){
   const c=base.clone(true)
 
-  const scale=0.5+Math.random()*0.5
+  // 🔥 1) DAHA BÜYÜK
+  const scale=(0.5+Math.random()*0.5)*2.5
   c.scale.setScalar(scale)
 
+  // 🔥 2) MODELE DAHA YAKIN + TAŞAN
+  const r=cityRadius*(0.85+Math.random()*0.4)
+
+  // 🔥 3) DAHA ALÇAK
+  const y=cityRadius*(0.6+Math.random()*0.15)
+
   const a=Math.random()*Math.PI*2
-  const r=cityRadius*(1.15+Math.random()*0.25) // 🔥 YAKIN
-  const y=cityRadius*0.9 + Math.random()*10     // 🔥 ŞEHRİN ÜSTÜ
 
   cloudGroup.add(c)
 
   clouds.push({
    obj:c,
-   a,
    r,
    y,
-   speed:0.0018+Math.random()*0.001
+   a,
+   speed:0.0016+Math.random()*0.001
   })
  }
 })
@@ -133,7 +134,7 @@ const introStart={r:520,a:Math.PI*0.75,h:260}
 const introEnd={r:60,a:Math.PI*1.15,h:40}
 
 /* =====================
-   PINS (REFERANS)
+   PINS (AYNI)
 ===================== */
 const pins=[
  {id:1,pos:new THREE.Vector3(10,15,0),text:'Merkez Bina',cam:{r:80,a:Math.PI*1.25,h:55}},
@@ -174,7 +175,6 @@ pins.forEach(p=>{
 
   focusT=0
 
-  // ⏱️ 5 SN SONRA KAPAN
   clearTimeout(tooltip._t)
   tooltip._t=setTimeout(()=>{
     tooltip.style.display='none'
@@ -218,7 +218,7 @@ function animate(){
   )
  }
 
- // ☁️ CLOUD MOVE (ŞEHRİN ÜSTÜNDE)
+ // ☁️ CLOUD MOVE
  clouds.forEach(c=>{
   c.a+=c.speed
   c.obj.position.set(
