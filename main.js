@@ -3,6 +3,11 @@ import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/exampl
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm'
 
 /* =====================
+   ENV DETECT
+===================== */
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+
+/* =====================
    GLOBAL CSS (PINS)
 ===================== */
 document.body.style.margin = '0'
@@ -69,17 +74,20 @@ scene.background = new THREE.Color(0x151515)
 
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 5000)
 
-const renderer = new THREE.WebGLRenderer({ antialias: true })
+const renderer = new THREE.WebGLRenderer({
+  antialias: !isMobile,
+  powerPreference: 'high-performance'
+})
 renderer.setSize(innerWidth, innerHeight)
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+renderer.setPixelRatio(isMobile ? 1 : Math.min(devicePixelRatio, 2))
 renderer.outputColorSpace = THREE.SRGBColorSpace
 document.body.appendChild(renderer.domElement)
 
 /* =====================
-   LIGHTING
+   LIGHTING (LIGHT)
 ===================== */
 scene.add(new THREE.AmbientLight(0xffffff, 0.9))
-const sun = new THREE.DirectionalLight(0xffffff, 2)
+const sun = new THREE.DirectionalLight(0xffffff, 1.8)
 sun.position.set(300, 400, 200)
 scene.add(sun)
 
@@ -139,7 +147,7 @@ loader.load('./city.glb', gltf => {
       baseY: obj.position.y,
       radius: Math.sqrt(dx * dx + dz * dz),
       angle: Math.atan2(dz, dx),
-      speed: 0.04 + Math.random() * 0.03
+      speed: isMobile ? 0.06 : 0.08   // ☁️ biraz daha hızlı
     })
   })
 })
@@ -184,7 +192,7 @@ controls.addEventListener('change', () => {
 })
 
 /* =====================
-   CAMERA FOCUS (NO JITTER)
+   CAMERA FOCUS
 ===================== */
 let focusT = 1
 let camFrom = {}
@@ -222,10 +230,13 @@ function focusPin(p) {
 ===================== */
 const clock = new THREE.Clock()
 let introT = 0
-const introDuration = 4
+const introDuration = isMobile ? 2.5 : 4
 
-const introFrom = { r: 650, a: Math.PI * 0.25, y: 320 }
-const introTo   = { r: 180, a: Math.PI * 1.25, y: 160 }
+const introFrom = isMobile
+  ? { r: 360, a: Math.PI * 1.1, y: 180 }
+  : { r: 650, a: Math.PI * 0.25, y: 320 }
+
+const introTo = { r: 180, a: Math.PI * 1.25, y: 160 }
 
 /* =====================
    ANIMATE
@@ -262,7 +273,7 @@ function animate() {
     updatePins()
   }
 
-  // CLOUDS
+  // ☁️ CLOUDS
   clouds.forEach(c => {
     c.angle += c.speed * dt
     c.obj.position.x = orbitCenter.x + Math.cos(c.angle) * c.radius
@@ -270,7 +281,7 @@ function animate() {
     c.obj.position.y = c.baseY
   })
 
-  // PIN FOCUS MOVE
+  // 🎥 PIN FOCUS MOVE
   if (focusT < 1) {
     isCameraAnimating = true
     focusT += dt * 1.2
@@ -290,7 +301,7 @@ function animate() {
     updatePins()
   }
 
-  controls.update()
+  if (!isCameraAnimating) controls.update()
   renderer.render(scene, camera)
 }
 
