@@ -12,7 +12,6 @@ const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x151515)
 
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 5000)
-camera.position.set(180, 160, 180)
 
 const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setSize(innerWidth, innerHeight)
@@ -21,7 +20,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace
 document.body.appendChild(renderer.domElement)
 
 /* =====================
-   LIGHTING (BRIGHT MODEL)
+   LIGHTING
 ===================== */
 scene.add(new THREE.AmbientLight(0xffffff, 0.9))
 
@@ -45,6 +44,7 @@ controls.mouseButtons = {
   MIDDLE: THREE.MOUSE.PAN,
   RIGHT: THREE.MOUSE.DOLLY
 }
+controls.enabled = false
 
 /* =====================
    LOADERS
@@ -52,7 +52,7 @@ controls.mouseButtons = {
 const loader = new GLTFLoader()
 
 /* =====================
-   CLOUD ORBIT DATA
+   CLOUD DATA
 ===================== */
 const clouds = []
 let orbitCenter = new THREE.Vector3()
@@ -72,26 +72,23 @@ loader.load('./city.glb', gltf => {
   city.traverse(obj => {
     if (!obj.isMesh) return
 
-    // world Y ile tespit
     const wp = new THREE.Vector3()
     obj.getWorldPosition(wp)
     if (wp.y < minCloudY) return
 
-    // SADECE BULUT: düşük vertex sayısı
     const geo = obj.geometry
     if (!geo?.attributes?.position) return
     if (geo.attributes.position.count > 2000) return
 
-    // local orbit datası
     const dx = obj.position.x - orbitCenter.x
     const dz = obj.position.z - orbitCenter.z
 
     clouds.push({
       obj,
-      baseY: obj.position.y,                // 🔒 yükseklik sabit
+      baseY: obj.position.y,
       radius: Math.sqrt(dx * dx + dz * dz),
       angle: Math.atan2(dz, dx),
-      speed: 0.08 + Math.random() * 0.05    // RAD / SANİYE (yavaş)
+      speed: 0.06 + Math.random() * 0.04
     })
   })
 
@@ -102,11 +99,11 @@ loader.load('./city.glb', gltf => {
    CAR CONFIG (BURAYLA OYNA)
 ===================== */
 const carConfig = {
-  scale: 0.42,                                // 🔍 boyut
-  startPosition: new THREE.Vector3(20, 0.20, 40), // 📍 başlangıç
-  rotationY: Math.PI * 1.5,                  // 🔄 yön
-  speed: 0.06,                               // 🚗 hız
-  lifeTime: 10                               // ⏱️ saniye
+  scale: 0.25,
+  startPosition: new THREE.Vector3(55, 0.25, 55),
+  rotationY: Math.PI * 1.5,
+  speed: 0.06,
+  lifeTime: 10
 }
 
 let car = null
@@ -123,13 +120,26 @@ function spawnCar() {
   })
 }
 
-// ilk araba
 spawnCar()
 
 /* =====================
-   CLOCK
+   INTRO ANIMATION
 ===================== */
 const clock = new THREE.Clock()
+let introT = 0
+const introDuration = 4 // saniye
+
+const introFrom = {
+  r: 650,
+  a: Math.PI * 0.25,
+  y: 320
+}
+
+const introTo = {
+  r: 180,
+  a: Math.PI * 1.25,
+  y: 160
+}
 
 /* =====================
    ANIMATE
@@ -138,7 +148,29 @@ function animate() {
   requestAnimationFrame(animate)
   const dt = clock.getDelta()
 
-  // ☁️ CLOUD ORBIT — DAİRESEL, Y SABİT
+  // 🎬 INTRO
+  if (introT < 1) {
+    introT += dt / introDuration
+    const t = THREE.MathUtils.smoothstep(introT, 0, 1)
+
+    const r = THREE.MathUtils.lerp(introFrom.r, introTo.r, t)
+    const a = THREE.MathUtils.lerp(introFrom.a, introTo.a, t)
+    const y = THREE.MathUtils.lerp(introFrom.y, introTo.y, t)
+
+    camera.position.set(
+      orbitCenter.x + Math.cos(a) * r,
+      y,
+      orbitCenter.z + Math.sin(a) * r
+    )
+
+    camera.lookAt(orbitCenter)
+    renderer.render(scene, camera)
+    return
+  } else {
+    controls.enabled = true
+  }
+
+  // ☁️ CLOUD ORBIT
   clouds.forEach(c => {
     c.angle += c.speed * dt
     c.obj.position.x = orbitCenter.x + Math.cos(c.angle) * c.radius
