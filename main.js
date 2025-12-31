@@ -88,7 +88,7 @@ loader.load('./cartooncity.glb',gltf=>{
 })
 
 /* =====================
-   CLOUD SYSTEM (REVİZE)
+   CLOUD SYSTEM (SON HAL)
 ===================== */
 const clouds = []
 const cloudGroup = new THREE.Group()
@@ -96,28 +96,28 @@ scene.add(cloudGroup)
 
 loader.load('./cloud.glb', gltf => {
   const base = gltf.scene
-  const COUNT = 6
+
+  // 🔢 normal bulutlar + 1 ekstra (merkeze yakın)
+  const COUNT = 7
 
   for (let i = 0; i < COUNT; i++) {
     const c = base.clone(true)
 
-    // 🔥 1) 3 KAT BÜYÜK
+    // 🔥 SCALE (3 KAT)
     const scale = (0.5 + Math.random() * 0.5) * 3
     c.scale.setScalar(scale)
 
-    // 🔥 2) RANDOM DAĞILIM
-    // bazıları merkeze yakın, bazıları dışarıda
-    const isInner = Math.random() < 0.35
+    // 🔥 merkeze yakın mı?
+    const isInner = (i === COUNT - 1) || Math.random() < 0.3
 
     const r = isInner
-      ? cityRadius * (0.45 + Math.random() * 0.2)   // merkeze yakınlar
-      : cityRadius * (0.8 + Math.random() * 0.5)    // dışarıda dolaşanlar
+      ? cityRadius * (0.35 + Math.random() * 0.15) // merkeze yakın
+      : cityRadius * (0.75 + Math.random() * 0.5)  // dış halka
 
-    // 🔥 3) DAHA ALÇAK
+    // 🔥 daha alçak
     const y = cityRadius * (0.55 + Math.random() * 0.2)
 
-    // 🔥 4) HEPSİ AYNI HATTA OLMASIN
-    const a = Math.random() * Math.PI * 2 + Math.random() * 0.8
+    const a = Math.random() * Math.PI * 2
 
     cloudGroup.add(c)
 
@@ -126,8 +126,12 @@ loader.load('./cloud.glb', gltf => {
       r,
       y,
       a,
-      // 🔥 herkes farklı hızda
-      speed: 0.0012 + Math.random() * 0.0018
+
+      // 🔥 HIZLAR YARIYA DÜŞÜRÜLDÜ
+      orbitSpeed: (0.0012 + Math.random() * 0.0018) * 0.5,
+
+      // 🔥 KENDİ ETRAFINDA DÖNME
+      spinSpeed: (Math.random() * 0.003 + 0.001) * 0.5
     })
   }
 })
@@ -225,15 +229,20 @@ function animate(){
   )
  }
 
- // ☁️ CLOUD MOVE
- clouds.forEach(c=>{
-  c.a+=c.speed
+// ☁️ CLOUD MOVE (ORBIT + SPIN)
+clouds.forEach(c => {
+  // şehir etrafında dönme
+  c.a += c.orbitSpeed
   c.obj.position.set(
-   Math.cos(c.a)*c.r,
-   c.y,
-   Math.sin(c.a)*c.r
+    Math.cos(c.a) * c.r,
+    c.y,
+    Math.sin(c.a) * c.r
   )
- })
+
+  // kendi etrafında dönme (doğal hissiyat)
+  c.obj.rotation.y += c.spinSpeed
+  c.obj.rotation.z += c.spinSpeed * 0.3
+})
 
  controls.update()
 
