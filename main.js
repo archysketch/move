@@ -85,7 +85,7 @@ dir.position.set(200, 300, 200)
 scene.add(dir)
 
 /* =====================
-   CONTROLS (BİREBİR REFERANS)
+   CONTROLS (REFERANS)
 ===================== */
 const controls = new OrbitControls(camera, renderer.domElement)
 controls.enabled = false
@@ -107,29 +107,23 @@ controls.minDistance = 40
 controls.maxDistance = 800
 
 /* =====================
-   LOAD CITY
-===================== */
-let city = null
-new GLTFLoader().load('./city.glb', gltf => {
-  city = gltf.scene
-  scene.add(city)
-})
-
-/* =====================
-   CLOUDS (SADE EK)
+   MODEL + CLOUD SETUP
 ===================== */
 const clouds = []
 
-function setupClouds() {
-  if (!city) return
+new GLTFLoader().load('./city.glb', gltf => {
+  const city = gltf.scene
+  scene.add(city)
 
+  // ☁️ BULUTLARI AYIR
   city.traverse(obj => {
     if (!obj.isMesh) return
     if (!obj.geometry?.attributes?.position) return
-    if (obj.geometry.attributes.position.count > 2000) return
 
-    if (obj.position.y > 30) {
+    // basit ve güvenli filtre
+    if (obj.position.y > 30 && obj.geometry.attributes.position.count < 2000) {
       const r = Math.sqrt(obj.position.x ** 2 + obj.position.z ** 2)
+
       clouds.push({
         obj,
         r,
@@ -139,7 +133,7 @@ function setupClouds() {
       })
     }
   })
-}
+})
 
 /* =====================
    INTRO
@@ -220,9 +214,7 @@ function animate() {
 
     camera.position.set(Math.cos(a) * r, h, Math.sin(a) * r)
     camera.lookAt(0, 0, 0)
-
     introFrame++
-    if (introFrame === introDuration && city) setupClouds()
   } else {
     controls.enabled = true
   }
@@ -245,7 +237,7 @@ function animate() {
     )
   }
 
-  // CLOUDS MOVE
+  // ☁️ BULUT HAREKETİ (Y SABİT)
   clouds.forEach(c => {
     c.a += c.speed
     c.obj.position.x = Math.cos(c.a) * c.r
