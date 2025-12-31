@@ -24,7 +24,6 @@ document.body.appendChild(renderer.domElement)
    LIGHTS
 ===================== */
 scene.add(new THREE.AmbientLight(0xffffff, 0.9))
-
 const sun = new THREE.DirectionalLight(0xffffff, 2.2)
 sun.position.set(300, 400, 200)
 scene.add(sun)
@@ -54,37 +53,42 @@ const clouds = []
 let orbitCenter = new THREE.Vector3()
 
 /* =====================
-   CITY + CLOUD SETUP
+   CITY + CLOUD FILTER (STRICT)
 ===================== */
 loader.load('./city.glb', gltf => {
   const city = gltf.scene
   scene.add(city)
 
-  // ORBIT MERKEZİ (LOCAL)
   const box = new THREE.Box3().setFromObject(city)
   box.getCenter(orbitCenter)
 
-  const topY = box.max.y - 20   // üst katman
+  const minCloudY = box.max.y - 25
 
   city.traverse(obj => {
-    if (!obj.isObject3D) return
+    if (!obj.isMesh) return
 
-    // ⚠️ LOCAL position kullanıyoruz
-    if (obj.position.y > topY) {
-      const dx = obj.position.x - orbitCenter.x
-      const dz = obj.position.z - orbitCenter.z
+    // Yukarıda mı?
+    if (obj.position.y < minCloudY) return
 
-      clouds.push({
-        obj,
-        baseY: obj.position.y,              // 🔒 SABİT
-        radius: Math.sqrt(dx * dx + dz * dz),
-        angle: Math.atan2(dz, dx),
-        speed: 0.01 + Math.random() * 0.01
-      })
-    }
+    // Küçük mü? (bulutlar küçük)
+    const size = new THREE.Vector3()
+    new THREE.Box3().setFromObject(obj).getSize(size)
+    if (size.length() > 40) return
+
+    // Bulut kabul et
+    const dx = obj.position.x - orbitCenter.x
+    const dz = obj.position.z - orbitCenter.z
+
+    clouds.push({
+      obj,
+      baseY: obj.position.y,
+      radius: Math.sqrt(dx * dx + dz * dz),
+      angle: Math.atan2(dz, dx),
+      speed: 0.15 + Math.random() * 0.1 // RAD / SANİYE
+    })
   })
 
-  console.log('☁️ Cloud orbit (fixed Y):', clouds.length)
+  console.log('☁️ Clouds (filtered):', clouds.length)
 })
 
 /* =====================
@@ -111,13 +115,13 @@ function animate() {
   requestAnimationFrame(animate)
   const dt = clock.getDelta()
 
-  // ☁️ DAİRESEL HAREKET – Y SABİT
+  // ☁️ DAİRESEL HAREKET — Y SABİT, ZAMAN BAĞLI
   clouds.forEach(c => {
-    c.angle += c.speed
+    c.angle += c.speed * dt
 
     c.obj.position.x = orbitCenter.x + Math.cos(c.angle) * c.radius
     c.obj.position.z = orbitCenter.z + Math.sin(c.angle) * c.radius
-    c.obj.position.y = c.baseY      // 🔒 ASLA DEĞİŞMEZ
+    c.obj.position.y = c.baseY
   })
 
   if (car) car.translateZ(0.04)
