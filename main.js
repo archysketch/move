@@ -108,14 +108,14 @@ loader.load('./cloud.glb', gltf => {
     c.scale.setScalar(scale)
 
     // 🔥 merkeze yakın mı?
-    const isInner = (i === COUNT - 2) || Math.random() < 0.1
+    const isInner = (i === COUNT - 3) || Math.random() < 0.05
 
     const r = isInner
       ? cityRadius * (0.2 + Math.random() * 0.07) // merkeze yakın
       : cityRadius * (0.6 + Math.random() * 0.3)  // dış halka
 
     // 🔥 daha alçak
-    const y = cityRadius * (0.50 + Math.random() * 0.2)
+    const y = cityRadius * (0.65 + Math.random() * 0.3)
 
     const a = Math.random() * Math.PI * 2
 
@@ -128,10 +128,10 @@ loader.load('./cloud.glb', gltf => {
       a,
 
       // 🔥 HIZLAR YARIYA DÜŞÜRÜLDÜ
-      orbitSpeed: (0.0012 + Math.random() * 0.0018) * 0.5,
+      orbitSpeed: (0.006 + Math.random() * 0.001) * 0.3,
 
       // 🔥 KENDİ ETRAFINDA DÖNME
-      spinSpeed: (Math.random() * 0.003 + 0.001) * 0.5
+      spinSpeed: (Math.random() * 0.0015 + 0.0007) * 0.4
     })
   }
 })
