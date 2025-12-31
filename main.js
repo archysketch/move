@@ -88,41 +88,48 @@ loader.load('./cartooncity.glb',gltf=>{
 })
 
 /* =====================
-   CLOUD SYSTEM (DÜZELTİLDİ)
+   CLOUD SYSTEM (REVİZE)
 ===================== */
-const clouds=[]
-const cloudGroup=new THREE.Group()
+const clouds = []
+const cloudGroup = new THREE.Group()
 scene.add(cloudGroup)
 
-loader.load('./cloud.glb',gltf=>{
- const base=gltf.scene
- const COUNT=5
+loader.load('./cloud.glb', gltf => {
+  const base = gltf.scene
+  const COUNT = 6
 
- for(let i=0;i<COUNT;i++){
-  const c=base.clone(true)
+  for (let i = 0; i < COUNT; i++) {
+    const c = base.clone(true)
 
-  // 🔥 1) DAHA BÜYÜK
-  const scale=(0.5+Math.random()*0.5)*2.5
-  c.scale.setScalar(scale)
+    // 🔥 1) 3 KAT BÜYÜK
+    const scale = (0.5 + Math.random() * 0.5) * 3
+    c.scale.setScalar(scale)
 
-  // 🔥 2) MODELE DAHA YAKIN + TAŞAN
-  const r=cityRadius*(0.85+Math.random()*0.4)
+    // 🔥 2) RANDOM DAĞILIM
+    // bazıları merkeze yakın, bazıları dışarıda
+    const isInner = Math.random() < 0.35
 
-  // 🔥 3) DAHA ALÇAK
-  const y=cityRadius*(0.6+Math.random()*0.15)
+    const r = isInner
+      ? cityRadius * (0.45 + Math.random() * 0.2)   // merkeze yakınlar
+      : cityRadius * (0.8 + Math.random() * 0.5)    // dışarıda dolaşanlar
 
-  const a=Math.random()*Math.PI*2
+    // 🔥 3) DAHA ALÇAK
+    const y = cityRadius * (0.55 + Math.random() * 0.2)
 
-  cloudGroup.add(c)
+    // 🔥 4) HEPSİ AYNI HATTA OLMASIN
+    const a = Math.random() * Math.PI * 2 + Math.random() * 0.8
 
-  clouds.push({
-   obj:c,
-   r,
-   y,
-   a,
-   speed:0.0016+Math.random()*0.001
-  })
- }
+    cloudGroup.add(c)
+
+    clouds.push({
+      obj: c,
+      r,
+      y,
+      a,
+      // 🔥 herkes farklı hızda
+      speed: 0.0012 + Math.random() * 0.0018
+    })
+  }
 })
 
 /* =====================
