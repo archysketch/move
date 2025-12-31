@@ -3,11 +3,63 @@ import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/exampl
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm'
 
 /* =====================
-   BASIC SETUP
+   GLOBAL CSS (PINS)
 ===================== */
 document.body.style.margin = '0'
 document.body.style.overflow = 'hidden'
 
+const style = document.createElement('style')
+style.innerHTML = `
+.pin-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+.pin {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  color: #111;
+  font-size: 11px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: pointer;
+}
+.tooltip {
+  position: absolute;
+  background: #fff;
+  color: #111;
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: 2px;
+  white-space: nowrap;
+  transform: translate(16px, -50%);
+  display: none;
+}
+`
+document.head.appendChild(style)
+
+/* =====================
+   PIN HTML
+===================== */
+const pinLayer = document.createElement('div')
+pinLayer.className = 'pin-layer'
+document.body.appendChild(pinLayer)
+
+const tooltip = document.createElement('div')
+tooltip.className = 'tooltip'
+pinLayer.appendChild(tooltip)
+
+/* =====================
+   BASIC SETUP
+===================== */
 const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x151515)
 
@@ -28,10 +80,6 @@ const sun = new THREE.DirectionalLight(0xffffff, 2.2)
 sun.position.set(300, 400, 200)
 scene.add(sun)
 
-const fill = new THREE.DirectionalLight(0xffffff, 0.8)
-fill.position.set(-200, 150, -200)
-scene.add(fill)
-
 /* =====================
    CONTROLS
 ===================== */
@@ -39,12 +87,12 @@ const controls = new OrbitControls(camera, renderer.domElement)
 controls.enableDamping = true
 controls.dampingFactor = 0.08
 controls.target.set(0, 40, 0)
+controls.enabled = false
 controls.mouseButtons = {
   LEFT: THREE.MOUSE.ROTATE,
   MIDDLE: THREE.MOUSE.PAN,
   RIGHT: THREE.MOUSE.DOLLY
 }
-controls.enabled = false
 
 /* =====================
    LOADERS
@@ -91,12 +139,33 @@ loader.load('./city.glb', gltf => {
       speed: 0.06 + Math.random() * 0.04
     })
   })
-
-  console.log('☁️ Clouds:', clouds.length)
 })
 
 /* =====================
-   CAR CONFIG (BURAYLA OYNA)
+   PINS (BURAYLA OYNA)
+===================== */
+const pins = [
+  { id: 1, pos: new THREE.Vector3(10, 15, 0), text: 'Merkez Bina' },
+  { id: 2, pos: new THREE.Vector3(-20, 12, 15), text: 'Sosyal Alan' },
+  { id: 3, pos: new THREE.Vector3(15, 10, -20), text: 'Yeşil Bölge' }
+]
+
+pins.forEach(p => {
+  const el = document.createElement('div')
+  el.className = 'pin'
+  el.innerText = p.id
+  pinLayer.appendChild(el)
+  p.el = el
+
+  el.onclick = () => {
+    tooltip.innerText = p.text
+    tooltip.style.display = 'block'
+    setTimeout(() => (tooltip.style.display = 'none'), 3000)
+  }
+})
+
+/* =====================
+   CAR CONFIG
 ===================== */
 const carConfig = {
   scale: 0.25,
@@ -127,19 +196,10 @@ spawnCar()
 ===================== */
 const clock = new THREE.Clock()
 let introT = 0
-const introDuration = 4 // saniye
+const introDuration = 4
 
-const introFrom = {
-  r: 650,
-  a: Math.PI * 0.25,
-  y: 320
-}
-
-const introTo = {
-  r: 180,
-  a: Math.PI * 1.25,
-  y: 160
-}
+const introFrom = { r: 650, a: Math.PI * 0.25, y: 320 }
+const introTo   = { r: 180, a: Math.PI * 1.25, y: 160 }
 
 /* =====================
    ANIMATE
@@ -148,7 +208,7 @@ function animate() {
   requestAnimationFrame(animate)
   const dt = clock.getDelta()
 
-  // 🎬 INTRO
+  // INTRO
   if (introT < 1) {
     introT += dt / introDuration
     const t = THREE.MathUtils.smoothstep(introT, 0, 1)
@@ -170,7 +230,7 @@ function animate() {
     controls.enabled = true
   }
 
-  // ☁️ CLOUD ORBIT
+  // CLOUDS
   clouds.forEach(c => {
     c.angle += c.speed * dt
     c.obj.position.x = orbitCenter.x + Math.cos(c.angle) * c.radius
@@ -178,17 +238,27 @@ function animate() {
     c.obj.position.y = c.baseY
   })
 
-  // 🚗 CAR LOOP
+  // CAR LOOP
   if (car) {
     car.translateZ(carConfig.speed)
     carTimer += dt
-
     if (carTimer > carConfig.lifeTime) {
       scene.remove(car)
       car = null
       spawnCar()
     }
   }
+
+  // PIN PROJECTION
+  pins.forEach(p => {
+    const v = p.pos.clone().project(camera)
+    const x = (v.x * 0.5 + 0.5) * innerWidth
+    const y = (-v.y * 0.5 + 0.5) * innerHeight
+    p.el.style.left = `${x}px`
+    p.el.style.top = `${y}px`
+    tooltip.style.left = `${x}px`
+    tooltip.style.top = `${y}px`
+  })
 
   controls.update()
   renderer.render(scene, camera)
