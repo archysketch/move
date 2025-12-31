@@ -110,7 +110,7 @@ controls.maxDistance = 800
    LOAD CITY
 ===================== */
 let city = null
-new GLTFLoader().load('./lowpoly.glb', gltf => {
+new GLTFLoader().load('./city.glb', gltf => {
   city = gltf.scene
   scene.add(city)
 })
