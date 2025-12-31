@@ -3,7 +3,7 @@ import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/exampl
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm'
 
 /* =====================
-   BASIC SETUP
+   BASIC
 ===================== */
 document.body.style.margin = '0'
 document.body.style.overflow = 'hidden'
@@ -20,11 +20,10 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
 document.body.appendChild(renderer.domElement)
 
 /* =====================
-   LIGHTS
+   LIGHT
 ===================== */
-scene.add(new THREE.AmbientLight(0xffffff, 0.85))
-
-const sun = new THREE.DirectionalLight(0xffffff, 0.9)
+scene.add(new THREE.AmbientLight(0xffffff, 0.9))
+const sun = new THREE.DirectionalLight(0xffffff, 1)
 sun.position.set(300, 400, 200)
 scene.add(sun)
 
@@ -42,69 +41,58 @@ controls.target.set(0, 40, 0)
 const loader = new GLTFLoader()
 
 /* =====================
-   CITY + CLOUDS (SAFE)
+   CLOUD GROUP (GLOBAL)
 ===================== */
-const clouds = []
-
-loader.load(
-  './city.glb',
-  gltf => {
-    const city = gltf.scene
-    city.position.set(0, 0, 0)
-    city.scale.setScalar(1)
-    scene.add(city)
-
-    city.traverse(obj => {
-      if (!obj.isMesh) return
-
-      // BULUT HEURISTIC: yukarıda + açık renk
-      const isHigh = obj.getWorldPosition(new THREE.Vector3()).y > 60
-
-      let isLight = false
-      if (obj.material && obj.material.color) {
-        const c = obj.material.color
-        isLight = c.r > 0.7 && c.g > 0.7 && c.b > 0.7
-      }
-
-      if (isHigh && isLight) {
-        clouds.push(obj)
-      }
-    })
-
-    console.log('☁️ Clouds detected:', clouds.length)
-  },
-  undefined,
-  err => {
-    console.error('❌ City load error', err)
-  }
-)
+const cloudGroup = new THREE.Group()
+scene.add(cloudGroup)
 
 /* =====================
-   CAR CONFIG (OYNANABİLİR)
+   CITY LOAD + SPLIT
+===================== */
+loader.load('./city.glb', gltf => {
+  const city = gltf.scene
+  scene.add(city)
+
+  // CITY BOUNDING BOX
+  const box = new THREE.Box3().setFromObject(city)
+  const size = new THREE.Vector3()
+  box.getSize(size)
+
+  const topThreshold = box.min.y + size.y * 0.7 // üst %30
+
+  city.traverse(obj => {
+    if (!obj.isObject3D) return
+
+    const worldPos = new THREE.Vector3()
+    obj.getWorldPosition(worldPos)
+
+    if (worldPos.y > topThreshold) {
+      cloudGroup.add(obj)
+    }
+  })
+
+  console.log('☁️ Cloud objects:', cloudGroup.children.length)
+})
+
+/* =====================
+   CAR CONFIG
 ===================== */
 const carConfig = {
-  position: new THREE.Vector3(90, 0.4, 90), // çepere yakın + aşağı
-  scale: 0.25,                              // 4 kat küçük
+  position: new THREE.Vector3(70, 0.3, 70),
+  scale: 0.25,
   speed: 0.04,
   rotationY: Math.PI * 1.5
 }
 
 let car = null
 
-loader.load(
-  './car.glb',
-  gltf => {
-    car = gltf.scene
-    car.scale.setScalar(carConfig.scale)
-    car.position.copy(carConfig.position)
-    car.rotation.y = carConfig.rotationY
-    scene.add(car)
-  },
-  undefined,
-  err => {
-    console.error('❌ Car load error', err)
-  }
-)
+loader.load('./car.glb', gltf => {
+  car = gltf.scene
+  car.scale.setScalar(carConfig.scale)
+  car.position.copy(carConfig.position)
+  car.rotation.y = carConfig.rotationY
+  scene.add(car)
+})
 
 /* =====================
    CLOCK
@@ -119,10 +107,8 @@ function animate() {
 
   const dt = clock.getDelta()
 
-  // ☁️ CLOUD ROTATION (SAFE)
-  clouds.forEach(cloud => {
-    cloud.rotation.y += 0.15 * dt
-  })
+  // ☁️ CLOUD ROTATION (GROUP LEVEL)
+  cloudGroup.rotation.y += 0.05 * dt
 
   // 🚗 CAR MOVE
   if (car) {
