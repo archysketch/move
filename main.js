@@ -104,18 +104,18 @@ loader.load('./cloud.glb', gltf => {
     const c = base.clone(true)
 
     // 🔥 SCALE (3 KAT)
-    const scale = (0.5 + Math.random() * 0.5) * 3
+    const scale = (1.0 + Math.random() * 1.0) * 6
     c.scale.setScalar(scale)
 
     // 🔥 merkeze yakın mı?
-    const isInner = (i === COUNT - 1) || Math.random() < 0.3
+    const isInner = (i === COUNT - 2) || Math.random() < 0.1
 
     const r = isInner
-      ? cityRadius * (0.35 + Math.random() * 0.15) // merkeze yakın
-      : cityRadius * (0.75 + Math.random() * 0.5)  // dış halka
+      ? cityRadius * (0.2 + Math.random() * 0.07) // merkeze yakın
+      : cityRadius * (0.6 + Math.random() * 0.3)  // dış halka
 
     // 🔥 daha alçak
-    const y = cityRadius * (0.55 + Math.random() * 0.2)
+    const y = cityRadius * (0.50 + Math.random() * 0.2)
 
     const a = Math.random() * Math.PI * 2
 
