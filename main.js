@@ -50,25 +50,34 @@ loader.load('./city.glb', gltf => {
   const city = gltf.scene
   scene.add(city)
 
-  city.traverse(obj => {
-    if (
-      obj.isMesh &&
-      obj.name.toLowerCase().includes('cloud')
-    ) {
-      clouds.push(obj)
-    }
-  })
+city.traverse(obj => {
+  if (!obj.isMesh) return
 
-  console.log('☁️ Clouds found:', clouds.map(c => c.name))
+  const y = obj.position.y
+  const mat = obj.material
+
+  const isHigh = y > 30          // şehir üstü
+  const isLight =
+    mat &&
+    mat.color &&
+    mat.color.r > 0.8 &&
+    mat.color.g > 0.8 &&
+    mat.color.b > 0.8
+
+  if (isHigh && isLight) {
+    clouds.push(obj)
+  }
 })
+
+console.log('☁️ Auto-detected clouds:', clouds.length)
 
 /* =====================
    CAR CONFIG (OYNA BURAYLA)
 ===================== */
 const carConfig = {
-  position: new THREE.Vector3(-40, 1.2, -20),
-  scale: 1.2,
-  speed: 0.03,        // ileri geri hız
+  position: new THREE.Vector3(-30, 1.0, -20),
+  scale: 0.3,
+  speed: 0.1,        // ileri geri hız
   rotationY: Math.PI // yön
 }
 
