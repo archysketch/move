@@ -101,7 +101,7 @@ loader.load('./clouds_cartoon.glb', gltf => {
   cloud = gltf.scene
 
   // 🔥 BOYUT
-  cloud.scale.setScalar(0.8)
+  cloud.scale.setScalar(0.5)
 
   scene.add(cloud)
 })
