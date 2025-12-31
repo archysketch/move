@@ -53,7 +53,7 @@ const clouds = []
 let orbitCenter = new THREE.Vector3()
 
 /* =====================
-   CITY + CLOUD FILTER (STRICT)
+   CITY + CLOUD SETUP (ROBUST)
 ===================== */
 loader.load('./city.glb', gltf => {
   const city = gltf.scene
@@ -62,33 +62,37 @@ loader.load('./city.glb', gltf => {
   const box = new THREE.Box3().setFromObject(city)
   box.getCenter(orbitCenter)
 
-  const minCloudY = box.max.y - 25
+  const worldMinY = box.max.y - 30   // üst katman
 
   city.traverse(obj => {
-    if (!obj.isMesh) return
+    if (!obj.isObject3D) return
 
-    // Yukarıda mı?
-    if (obj.position.y < minCloudY) return
+    const wp = new THREE.Vector3()
+    obj.getWorldPosition(wp)
 
-    // Küçük mü? (bulutlar küçük)
+    // YUKARIDA MI?
+    if (wp.y < worldMinY) return
+
+    // ÇOK BÜYÜK OBJEYİ ELE
     const size = new THREE.Vector3()
     new THREE.Box3().setFromObject(obj).getSize(size)
-    if (size.length() > 40) return
+    if (size.length() > 50) return
 
-    // Bulut kabul et
-    const dx = obj.position.x - orbitCenter.x
-    const dz = obj.position.z - orbitCenter.z
+    // LOCAL REFERANSLA ORBIT DATA
+    const local = obj.position.clone()
+    const dx = local.x - orbitCenter.x
+    const dz = local.z - orbitCenter.z
 
     clouds.push({
       obj,
-      baseY: obj.position.y,
+      baseY: local.y,                 // 🔒 SABİT
       radius: Math.sqrt(dx * dx + dz * dz),
       angle: Math.atan2(dz, dx),
-      speed: 0.15 + Math.random() * 0.1 // RAD / SANİYE
+      speed: 0.25 + Math.random() * 0.15 // RAD / SANİYE (GÖRÜNÜR)
     })
   })
 
-  console.log('☁️ Clouds (filtered):', clouds.length)
+  console.log('☁️ Clouds orbiting:', clouds.length)
 })
 
 /* =====================
@@ -115,7 +119,7 @@ function animate() {
   requestAnimationFrame(animate)
   const dt = clock.getDelta()
 
-  // ☁️ DAİRESEL HAREKET — Y SABİT, ZAMAN BAĞLI
+  // ☁️ DAİRESEL HAREKET — Y SABİT
   clouds.forEach(c => {
     c.angle += c.speed * dt
 
