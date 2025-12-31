@@ -144,14 +144,32 @@ loader.load('./city.glb', gltf => {
 })
 
 /* =====================
-   PINS
+   PINS (CAMERA TARGETS)
 ===================== */
 const pins = [
-  { id: 1, pos: new THREE.Vector3(10, 15, 0), text: 'Merkez Bina' },
-  { id: 2, pos: new THREE.Vector3(-20, 12, 15), text: 'Sosyal Alan' },
-  { id: 3, pos: new THREE.Vector3(15, 10, -20), text: 'Yeşil Bölge' }
+  {
+    id: 1,
+    pos: new THREE.Vector3(10, 15, 0),
+    text: 'Merkez Bina',
+    cam: { r: 90, a: Math.PI * 1.2, y: 55 }
+  },
+  {
+    id: 2,
+    pos: new THREE.Vector3(-20, 12, 15),
+    text: 'Sosyal Alan',
+    cam: { r: 90, a: Math.PI * 0.6, y: 55 }
+  },
+  {
+    id: 3,
+    pos: new THREE.Vector3(15, 10, -20),
+    text: 'Yeşil Bölge',
+    cam: { r: 90, a: Math.PI * 1.8, y: 55 }
+  }
 ]
 
+/* =====================
+   PIN ELEMENTS
+===================== */
 pins.forEach(p => {
   const el = document.createElement('div')
   el.className = 'pin'
@@ -159,15 +177,7 @@ pins.forEach(p => {
   pinLayer.appendChild(el)
   p.el = el
 
-  el.onclick = () => {
-    activePin = p
-    tooltip.innerText = p.text
-    tooltip.style.display = 'block'
-    setTimeout(() => {
-      tooltip.style.display = 'none'
-      activePin = null
-    }, 3000)
-  }
+  el.onclick = () => focusPin(p)
 })
 
 /* =====================
@@ -188,8 +198,44 @@ function updatePins() {
     tooltip.style.top = `${(-v.y * 0.5 + 0.5) * innerHeight}px`
   }
 }
-
 controls.addEventListener('change', updatePins)
+
+/* =====================
+   CAMERA FOCUS (SHORTEST ARC)
+===================== */
+let focusT = 1
+let camFrom = {}
+let camTo = {}
+
+function focusPin(p) {
+  activePin = p
+  tooltip.innerText = p.text
+  tooltip.style.display = 'block'
+
+  camFrom = {
+    r: camera.position.distanceTo(controls.target),
+    a: Math.atan2(
+      camera.position.z - controls.target.z,
+      camera.position.x - controls.target.x
+    ),
+    y: camera.position.y,
+    target: controls.target.clone()
+  }
+
+  camTo = {
+    r: p.cam.r,
+    a: p.cam.a,
+    y: p.cam.y,
+    target: p.pos.clone()
+  }
+
+  // 🔑 SHORTEST ARC
+  let delta = camTo.a - camFrom.a
+  delta = Math.atan2(Math.sin(delta), Math.cos(delta))
+  camTo.a = camFrom.a + delta
+
+  focusT = 0
+}
 
 /* =====================
    INTRO
@@ -236,13 +282,31 @@ function animate() {
     updatePins()
   }
 
-  // CLOUDS
+  // ☁️ CLOUDS
   clouds.forEach(c => {
     c.angle += c.speed * dt
     c.obj.position.x = orbitCenter.x + Math.cos(c.angle) * c.radius
     c.obj.position.z = orbitCenter.z + Math.sin(c.angle) * c.radius
     c.obj.position.y = c.baseY
   })
+
+  // 🎥 PIN FOCUS MOVE
+  if (focusT < 1) {
+    focusT += dt * 1.2
+    const t = THREE.MathUtils.smoothstep(focusT, 0, 1)
+
+    const r = THREE.MathUtils.lerp(camFrom.r, camTo.r, t)
+    const a = THREE.MathUtils.lerp(camFrom.a, camTo.a, t)
+    const y = THREE.MathUtils.lerp(camFrom.y, camTo.y, t)
+
+    controls.target.lerpVectors(camFrom.target, camTo.target, t)
+
+    camera.position.set(
+      controls.target.x + Math.cos(a) * r,
+      y,
+      controls.target.z + Math.sin(a) * r
+    )
+  }
 
   controls.update()
   renderer.render(scene, camera)
