@@ -229,7 +229,7 @@ function animate(){
   )
  }
 
-// ☁️ CLOUD MOVE (ORBIT + SPIN)
+// ☁️ CLOUD MOVE (DOĞRU EKSEN)
 clouds.forEach(c => {
   // şehir etrafında dönme
   c.a += c.orbitSpeed
@@ -239,9 +239,8 @@ clouds.forEach(c => {
     Math.sin(c.a) * c.r
   )
 
-  // kendi etrafında dönme (doğal hissiyat)
+  // ✅ SADECE Y EKSENİNDE SPIN
   c.obj.rotation.y += c.spinSpeed
-  c.obj.rotation.z += c.spinSpeed * 0.3
 })
 
  controls.update()
