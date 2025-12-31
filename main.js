@@ -3,7 +3,7 @@ import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/exampl
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm'
 
 /* =====================
-   BASIC SETUP
+   BASIC
 ===================== */
 document.body.style.margin = '0'
 document.body.style.overflow = 'hidden'
@@ -21,17 +21,13 @@ renderer.outputColorSpace = THREE.SRGBColorSpace
 document.body.appendChild(renderer.domElement)
 
 /* =====================
-   LIGHTING (BRIGHT)
+   LIGHTS
 ===================== */
 scene.add(new THREE.AmbientLight(0xffffff, 0.9))
 
-const sun = new THREE.DirectionalLight(0xffffff, 2.4)
+const sun = new THREE.DirectionalLight(0xffffff, 2.2)
 sun.position.set(300, 400, 200)
 scene.add(sun)
-
-const fill = new THREE.DirectionalLight(0xffffff, 0.9)
-fill.position.set(-200, 150, -200)
-scene.add(fill)
 
 /* =====================
    CONTROLS
@@ -47,70 +43,59 @@ controls.mouseButtons = {
 }
 
 /* =====================
-   LOADERS
+   LOADER
 ===================== */
 const loader = new GLTFLoader()
 
 /* =====================
-   CLOUD DATA
+   CLOUD ORBIT DATA
 ===================== */
 const clouds = []
-let cityCenter = new THREE.Vector3()
+let orbitCenter = new THREE.Vector3()
 
 /* =====================
-   CITY + CLOUD PREP
+   CITY + CLOUD SETUP
 ===================== */
 loader.load('./city.glb', gltf => {
   const city = gltf.scene
   scene.add(city)
 
+  // ORBIT MERKEZİ (LOCAL)
   const box = new THREE.Box3().setFromObject(city)
-  const size = new THREE.Vector3()
-  box.getSize(size)
-  box.getCenter(cityCenter)
+  box.getCenter(orbitCenter)
 
-  const thresholdY = box.min.y + size.y * 0.6
+  const topY = box.max.y - 20   // üst katman
 
   city.traverse(obj => {
     if (!obj.isObject3D) return
 
-    const wp = new THREE.Vector3()
-    obj.getWorldPosition(wp)
-
-    if (wp.y > thresholdY) {
-      const dx = wp.x - cityCenter.x
-      const dz = wp.z - cityCenter.z
+    // ⚠️ LOCAL position kullanıyoruz
+    if (obj.position.y > topY) {
+      const dx = obj.position.x - orbitCenter.x
+      const dz = obj.position.z - orbitCenter.z
 
       clouds.push({
         obj,
+        baseY: obj.position.y,              // 🔒 SABİT
         radius: Math.sqrt(dx * dx + dz * dz),
         angle: Math.atan2(dz, dx),
-        height: wp.y,                 // 🔒 SABİT Y
-        speed: 0.015 + Math.random() * 0.015
+        speed: 0.01 + Math.random() * 0.01
       })
     }
   })
 
-  console.log('☁️ Cloud orbit count:', clouds.length)
+  console.log('☁️ Cloud orbit (fixed Y):', clouds.length)
 })
 
 /* =====================
-   CAR CONFIG
+   CAR
 ===================== */
-const carConfig = {
-  position: new THREE.Vector3(55, 0.25, 55),
-  scale: 0.25,
-  speed: 0.04,
-  rotationY: Math.PI * 1.5
-}
-
-let car = null
-
+let car
 loader.load('./car.glb', gltf => {
   car = gltf.scene
-  car.scale.setScalar(carConfig.scale)
-  car.position.copy(carConfig.position)
-  car.rotation.y = carConfig.rotationY
+  car.scale.setScalar(0.25)
+  car.position.set(55, 0.25, 55)
+  car.rotation.y = Math.PI * 1.5
   scene.add(car)
 })
 
@@ -126,19 +111,16 @@ function animate() {
   requestAnimationFrame(animate)
   const dt = clock.getDelta()
 
-  // ☁️ CLOUD ORBIT — XZ ONLY, Y FIXED
+  // ☁️ DAİRESEL HAREKET – Y SABİT
   clouds.forEach(c => {
-    c.angle += c.speed * dt
+    c.angle += c.speed
 
-    c.obj.position.set(
-      cityCenter.x + Math.cos(c.angle) * c.radius,
-      c.height, // 🔒 yükseklik değişmez
-      cityCenter.z + Math.sin(c.angle) * c.radius
-    )
+    c.obj.position.x = orbitCenter.x + Math.cos(c.angle) * c.radius
+    c.obj.position.z = orbitCenter.z + Math.sin(c.angle) * c.radius
+    c.obj.position.y = c.baseY      // 🔒 ASLA DEĞİŞMEZ
   })
 
-  // 🚗 CAR MOVE
-  if (car) car.translateZ(carConfig.speed)
+  if (car) car.translateZ(0.04)
 
   controls.update()
   renderer.render(scene, camera)
