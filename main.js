@@ -11,8 +11,8 @@ document.body.style.overflow = 'hidden'
 const scene = new THREE.Scene()
 scene.background = new THREE.Color(0xbfe9ff)
 
-const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 3000)
-camera.position.set(120, 120, 120)
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 5000)
+camera.position.set(180, 160, 180)
 
 const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setSize(innerWidth, innerHeight)
@@ -22,10 +22,10 @@ document.body.appendChild(renderer.domElement)
 /* =====================
    LIGHTS
 ===================== */
-scene.add(new THREE.AmbientLight(0xffffff, 0.9))
+scene.add(new THREE.AmbientLight(0xffffff, 0.85))
 
-const sun = new THREE.DirectionalLight(0xffffff, 0.8)
-sun.position.set(200, 300, 200)
+const sun = new THREE.DirectionalLight(0xffffff, 0.9)
+sun.position.set(300, 400, 200)
 scene.add(sun)
 
 /* =====================
@@ -34,7 +34,7 @@ scene.add(sun)
 const controls = new OrbitControls(camera, renderer.domElement)
 controls.enableDamping = true
 controls.dampingFactor = 0.08
-controls.target.set(0, 0, 0)
+controls.target.set(0, 40, 0)
 
 /* =====================
    LOADERS
@@ -42,54 +42,69 @@ controls.target.set(0, 0, 0)
 const loader = new GLTFLoader()
 
 /* =====================
-   CITY + CLOUDS
+   CITY + CLOUDS (SAFE)
 ===================== */
 const clouds = []
 
-loader.load('./city.glb', gltf => {
-  const city = gltf.scene
-  scene.add(city)
+loader.load(
+  './city.glb',
+  gltf => {
+    const city = gltf.scene
+    city.position.set(0, 0, 0)
+    city.scale.setScalar(1)
+    scene.add(city)
 
-city.traverse(obj => {
-  if (!obj.isMesh) return
+    city.traverse(obj => {
+      if (!obj.isMesh) return
 
-  const y = obj.position.y
-  const mat = obj.material
+      // BULUT HEURISTIC: yukarıda + açık renk
+      const isHigh = obj.getWorldPosition(new THREE.Vector3()).y > 60
 
-  const isHigh = y > 30          // şehir üstü
-  const isLight =
-    mat &&
-    mat.color &&
-    mat.color.r > 0.8 &&
-    mat.color.g > 0.8 &&
-    mat.color.b > 0.8
+      let isLight = false
+      if (obj.material && obj.material.color) {
+        const c = obj.material.color
+        isLight = c.r > 0.7 && c.g > 0.7 && c.b > 0.7
+      }
 
-  if (isHigh && isLight) {
-    clouds.push(obj)
+      if (isHigh && isLight) {
+        clouds.push(obj)
+      }
+    })
+
+    console.log('☁️ Clouds detected:', clouds.length)
+  },
+  undefined,
+  err => {
+    console.error('❌ City load error', err)
   }
-})
-
-console.log('☁️ Auto-detected clouds:', clouds.length)
+)
 
 /* =====================
-   CAR CONFIG (OYNA BURAYLA)
+   CAR CONFIG (OYNANABİLİR)
 ===================== */
 const carConfig = {
-  position: new THREE.Vector3(-30, 1.0, -20),
-  scale: 0.3,
-  speed: 0.1,        // ileri geri hız
-  rotationY: Math.PI // yön
+  position: new THREE.Vector3(90, 0.4, 90), // çepere yakın + aşağı
+  scale: 0.25,                              // 4 kat küçük
+  speed: 0.04,
+  rotationY: Math.PI * 1.5
 }
 
-let car
+let car = null
 
-loader.load('./car.glb', gltf => {
-  car = gltf.scene
-  car.scale.setScalar(carConfig.scale)
-  car.position.copy(carConfig.position)
-  car.rotation.y = carConfig.rotationY
-  scene.add(car)
-})
+loader.load(
+  './car.glb',
+  gltf => {
+    car = gltf.scene
+    car.scale.setScalar(carConfig.scale)
+    car.position.copy(carConfig.position)
+    car.rotation.y = carConfig.rotationY
+    scene.add(car)
+  },
+  undefined,
+  err => {
+    console.error('❌ Car load error', err)
+  }
+)
 
 /* =====================
    CLOCK
@@ -104,12 +119,12 @@ function animate() {
 
   const dt = clock.getDelta()
 
-  /* ☁️ CLOUD ROTATION */
-  clouds.forEach((cloud, i) => {
-    cloud.rotation.y += 0.1 * dt   // hız burada
+  // ☁️ CLOUD ROTATION (SAFE)
+  clouds.forEach(cloud => {
+    cloud.rotation.y += 0.15 * dt
   })
 
-  /* 🚗 CAR MOVE */
+  // 🚗 CAR MOVE
   if (car) {
     car.translateZ(carConfig.speed)
   }
