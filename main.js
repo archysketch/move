@@ -104,7 +104,7 @@ loader.load('./cloud.glb', gltf => {
     const c = base.clone(true)
 
     // 🔥 SCALE (3 KAT)
-    const scale = (1.0 + Math.random() * 1.0) * 6
+    const scale = (0.6 + Math.random() * 0.7) *46
     c.scale.setScalar(scale)
 
     // 🔥 merkeze yakın mı?
